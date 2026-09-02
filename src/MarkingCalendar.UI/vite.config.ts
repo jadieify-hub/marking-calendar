@@ -8,8 +8,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   test: {
+    css: true,
     environment: "jsdom",
     restoreMocks: true,
   },
 });
-
