@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MarkingCalendar.App/MarkingCalendar.App.csproj" />
+    <Project Path="src/MarkingCalendar.Core/MarkingCalendar.Core.csproj" />
+    <Project Path="src/MarkingCalendar.Infrastructure/MarkingCalendar.Infrastructure.csproj" />
+    <Project Path="src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MarkingCalendar.App.Tests/MarkingCalendar.App.Tests.csproj" />
+    <Project Path="tests/MarkingCalendar.Core.Tests/MarkingCalendar.Core.Tests.csproj" />
+    <Project Path="tests/MarkingCalendar.Infrastructure.Tests/MarkingCalendar.Infrastructure.Tests.csproj" />
+    <Project Path="tests/MarkingCalendar.Runner.Tests/MarkingCalendar.Runner.Tests.csproj" />
+  </Folder>
+</Solution>

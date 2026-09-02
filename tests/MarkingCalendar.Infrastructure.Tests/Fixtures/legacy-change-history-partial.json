@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "checkedAt": "2026-09-02T09:00:00+03:00",
+  "batches": [
+    {
+      "checkedAt": "2026-09-02T09:00:00+03:00",
+      "added": [
+        {
+          "start": "2026-10-01",
+          "end": "",
+          "period": "с 1 октября 2026",
+          "group": "Игрушки",
+          "type": "Розничная продажа",
+          "stage": "Передача сведений через ККТ",
+          "description": "Новый этап",
+          "url": "https://честныйзнак.рф/business/projects/children/"
+        }
+      ],
+      "removed": [],
+      "moved": [],
+      "changed": []
+    },
+    {
+      "checkedAt": "не дата",
+      "added": [{ "group": "Повреждённый батч" }],
+      "removed": [],
+      "moved": [],
+      "changed": []
+    }
+  ]
+}

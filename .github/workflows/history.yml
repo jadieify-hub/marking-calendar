@@ -1,0 +1,151 @@
+name: Public calendar history
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: history
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore runner
+        run: dotnet restore src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj -r win-x64 --locked-mode
+
+      - name: Detect data branch
+        id: data_branch
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out data branch
+        if: steps.data_branch.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - name: Initialize orphan data branch
+        if: steps.data_branch.outputs.exists != 'true'
+        shell: bash
+        run: |
+          git worktree add --detach data HEAD
+          git -C data checkout --orphan data
+          git -C data rm -rf .
+          git -C data -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --allow-empty -m 'data: initialize branch'
+          git -C data push origin HEAD:data
+
+      - name: Check calendar source
+        id: check
+        shell: bash
+        run: |
+          set +e
+          output=$(dotnet run --project src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj --configuration Release --no-restore -- check --data ./data 2>&1)
+          exit_code=$?
+          set -e
+          printf '%s\n' "$output"
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          if batch_id=$(printf '%s\n' "$output" | sed -n 's/^CHANGED=//p' | head -n 1) && [ -n "$batch_id" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "batch_id=$batch_id" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          change_count=$(printf '%s\n' "$output" | sed -n 's/^CHANGES=//p' | head -n 1)
+          echo "change_count=${change_count:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Copy and validate group map
+        shell: bash
+        run: |
+          cp -- assets/groups/groups.json data/groups.json
+          cmp --silent assets/groups/groups.json data/groups.json
+          if [ -f data/manifest.json ] && ! jq -e '.groupsUrl == "groups.json"' data/manifest.json >/dev/null; then
+            jq '. + {groupsUrl: "groups.json"}' data/manifest.json > data/manifest.json.tmp
+            mv data/manifest.json.tmp data/manifest.json
+          fi
+          set +e
+          output=$(dotnet run --project src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj --configuration Release --no-restore -- validate-groups --data ./data 2>&1)
+          exit_code=$?
+          set -e
+          printf '%s\n' "$output"
+          {
+            echo '## Карта товарных групп'
+            echo '```text'
+            printf '%s\n' "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$exit_code"
+
+      - name: Upload rejected source response
+        if: steps.check.outputs.exit_code == '2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rejected-calendar-response
+          path: data/rejected/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Stop on runner failure
+        if: steps.check.outputs.exit_code != '0'
+        shell: bash
+        run: exit "${{ steps.check.outputs.exit_code }}"
+
+      - name: Commit published data
+        shell: bash
+        run: |
+          if [ ! -f data/README.md ]; then
+            printf '%s\n%s\n' 'Публичная история изменений «Календаря маркировки».' 'Файлы формируются автоматически из проверенных общедоступных данных честныйзнак.рф.' > data/README.md
+          fi
+          git -C data add -- current.json source.json groups.json manifest.json CHANGELOG.md feed.xml README.md
+          if [ -f data/history/changes.json ]; then
+            git -C data add -- history/changes.json
+          fi
+          if git -C data diff --cached --quiet; then
+            exit 0
+          fi
+          date_msk=$(TZ=Europe/Moscow date '+%d.%m.%Y')
+          count='${{ steps.check.outputs.change_count }}'
+          if [ '${{ steps.check.outputs.changed }}' = 'true' ]; then
+            message="data: ${date_msk} — ${count} изменений"
+          elif [ '${{ steps.data_branch.outputs.exists }}' = 'true' ]; then
+            message="data: ${date_msk} — обновление карты групп"
+          else
+            message="data: ${date_msk} — начальный снимок"
+          fi
+          git -C data -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "$message"
+          git -C data push origin HEAD:data
+
+      - name: Announce changes in Telegram
+        if: steps.check.outputs.changed == 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo 'Telegram announcement skipped: secrets are not configured.'
+            exit 0
+          fi
+          message_file="$RUNNER_TEMP/telegram-message.txt"
+          dotnet run --project src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj --configuration Release --no-restore -- render-telegram --batch '${{ steps.check.outputs.batch_id }}' --data ./data > "$message_file"
+          curl --silent --show-error --fail-with-body \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text@${message_file}" \
+            >/dev/null

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MarkingCalendar.Core</RootNamespace>
+    <AssemblyName>MarkingCalendar.Core</AssemblyName>
+  </PropertyGroup>
+</Project>
+

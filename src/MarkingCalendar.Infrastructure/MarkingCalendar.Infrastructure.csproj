@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MarkingCalendar.Infrastructure</RootNamespace>
+    <AssemblyName>MarkingCalendar.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MarkingCalendar.Core/MarkingCalendar.Core.csproj" />
+  </ItemGroup>
+</Project>
+

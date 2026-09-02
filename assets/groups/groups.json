@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 2,
+  "updatedAt": "2026-09-02",
+  "sectors": [
+    {
+      "id": "food",
+      "label": "Продукты и напитки"
+    },
+    {
+      "id": "horeca",
+      "label": "Кафе, бары, рестораны"
+    },
+    {
+      "id": "pharma",
+      "label": "Аптека и медизделия"
+    },
+    {
+      "id": "beauty",
+      "label": "Косметика, парфюмерия и бытовая химия"
+    },
+    {
+      "id": "apparel",
+      "label": "Одежда, обувь, текстиль"
+    },
+    {
+      "id": "home",
+      "label": "Товары для дома и детей"
+    },
+    {
+      "id": "pets",
+      "label": "Зоотовары и сад"
+    },
+    {
+      "id": "electronics",
+      "label": "Электроника и техника"
+    },
+    {
+      "id": "auto",
+      "label": "Авто, стройка, промышленность"
+    },
+    {
+      "id": "tobacco",
+      "label": "Табак и никотин"
+    }
+  ],
+  "groups": [
+    {
+      "name": "Автозапчасти",
+      "link": "/business/projects/autoparts/",
+      "sectors": [
+        "auto"
+      ]
+    },
+    {
+      "name": "Антисептики и дезинфицирующие средства",
+      "link": "/business/projects/antiseptic/",
+      "sectors": [
+        "pharma",
+        "beauty"
+      ]
+    },
+    {
+      "name": "БАД",
+      "link": "/business/projects/dietarysup/",
+      "sectors": [
+        "food",
+        "pharma"
+      ]
+    },
+    {
+      "name": "Бакалея",
+      "link": "/business/projects/grocery/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Безалкогольное пиво",
+      "link": "/business/projects/nonalcoholic_beer/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Безалкогольные напитки",
+      "link": "/business/projects/beverages/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Велосипеды",
+      "link": "/business/projects/bicycles/",
+      "sectors": [
+        "home"
+      ]
+    },
+    {
+      "name": "Ветеринарные препараты",
+      "link": "/business/projects/veterinary_products/",
+      "sectors": [
+        "pharma",
+        "pets"
+      ]
+    },
+    {
+      "name": "Детские игрушки",
+      "link": "/business/projects/children/",
+      "sectors": [
+        "home"
+      ]
+    },
+    {
+      "name": "Детское питание",
+      "link": "/business/projects/babyfood/",
+      "sectors": [
+        "food",
+        "pharma"
+      ]
+    },
+    {
+      "name": "Духи и туалетная вода",
+      "link": "/business/projects/perfumes/",
+      "sectors": [
+        "beauty"
+      ]
+    },
+    {
+      "name": "Кабельная продукция",
+      "link": "/business/projects/cables/",
+      "sectors": [
+        "electronics",
+        "auto"
+      ]
+    },
+    {
+      "name": "Консервированные продукты",
+      "link": "/business/projects/canned_food/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Корма для животных",
+      "link": "/business/projects/pet_food/",
+      "sectors": [
+        "food",
+        "pets"
+      ]
+    },
+    {
+      "name": "Косметика, бытовая химия и товары личной гигиены",
+      "link": "/business/projects/cosmetics/",
+      "sectors": [
+        "pharma",
+        "beauty",
+        "home"
+      ]
+    },
+    {
+      "name": "Кресла-коляски",
+      "link": "/business/projects/wheelchairs/",
+      "sectors": [
+        "pharma"
+      ]
+    },
+    {
+      "name": "Лекарства",
+      "link": "/business/projects/medicines/",
+      "sectors": [
+        "pharma"
+      ]
+    },
+    {
+      "name": "Макароны, крупы, мёд",
+      "link": "/business/projects/groceries/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Медицинские изделия",
+      "link": "/business/projects/medical_devices/",
+      "sectors": [
+        "pharma"
+      ]
+    },
+    {
+      "name": "Медицинские изделия 2.0",
+      "link": "/business/projects/medproducts/",
+      "sectors": [
+        "pharma"
+      ]
+    },
+    {
+      "name": "Меховые изделия",
+      "link": "/business/projects/fur/",
+      "sectors": [
+        "apparel"
+      ]
+    },
+    {
+      "name": "Молочная продукция",
+      "link": "/business/projects/dairy/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Морепродукты (икра)",
+      "link": "/business/projects/caviar/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Моторные масла",
+      "link": "/business/projects/autofluids/",
+      "sectors": [
+        "auto"
+      ]
+    },
+    {
+      "name": "Мясные изделия",
+      "link": "/business/projects/meat/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Обувь",
+      "link": "/business/projects/footwear/",
+      "sectors": [
+        "apparel"
+      ]
+    },
+    {
+      "name": "Оптоволокно",
+      "link": "/business/projects/optical_fiber/",
+      "sectors": [
+        "auto"
+      ]
+    },
+    {
+      "name": "Отопительные приборы",
+      "link": "/business/projects/heating_devices/",
+      "sectors": [
+        "home",
+        "auto"
+      ]
+    },
+    {
+      "name": "Печатная продукция (завершен)",
+      "link": "/business/projects/books/",
+      "sectors": [
+        "home"
+      ],
+      "status": "completed"
+    },
+    {
+      "name": "Пиво и слабоалкогольные напитки",
+      "link": "/business/projects/beer/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Пиротехнические изделия",
+      "link": "/business/projects/pyrotechnics/",
+      "sectors": [
+        "home"
+      ]
+    },
+    {
+      "name": "Полимерные трубы",
+      "link": "/business/projects/polymerpipes/",
+      "sectors": [
+        "auto"
+      ]
+    },
+    {
+      "name": "Полуфабрикаты и замороженная продукция",
+      "link": "/business/projects/semi_frozen/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Радиоэлектроника",
+      "link": "/business/projects/radioelectronics/",
+      "sectors": [
+        "electronics"
+      ]
+    },
+    {
+      "name": "Радиоэлектроника (Электронные сигареты)",
+      "link": "/business/projects/electronic_cigarettes/",
+      "sectors": [
+        "tobacco"
+      ]
+    },
+    {
+      "name": "Растворимые напитки",
+      "link": "/business/projects/brdrinks/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Растительные масла",
+      "link": "/business/projects/oil/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Слабый алкоголь",
+      "link": "/business/projects/low_alcohol/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Сладости",
+      "link": "/business/projects/sweets/",
+      "sectors": [
+        "food"
+      ]
+    },
+    {
+      "name": "Спортивное питание",
+      "link": "/business/projects/sportpit/",
+      "sectors": [
+        "food",
+        "pharma"
+      ]
+    },
+    {
+      "name": "Средства гигиены",
+      "link": "/business/projects/chemistry/",
+      "sectors": [
+        "pharma",
+        "beauty",
+        "home"
+      ]
+    },
+    {
+      "name": "Строительные материалы",
+      "link": "/business/projects/cement/",
+      "sectors": [
+        "auto"
+      ]
+    },
+    {
+      "name": "Табак",
+      "link": "/business/projects/tobacco/",
+      "sectors": [
+        "food",
+        "tobacco"
+      ]
+    },
+    {
+      "name": "Технические средства реабилитации",
+      "link": "/business/projects/technical_rehabilitation/",
+      "sectors": [
+        "pharma"
+      ]
+    },
+    {
+      "name": "Товары для дома и интерьера",
+      "link": "/business/projects/homeware/",
+      "sectors": [
+        "home"
+      ]
+    },
+    {
+      "name": "Товары легкой промышленности",
+      "link": "/business/projects/light_industry/",
+      "sectors": [
+        "apparel"
+      ]
+    },
+    {
+      "name": "Удобрения",
+      "link": "/business/projects/fertilizers/",
+      "sectors": [
+        "pets"
+      ]
+    },
+    {
+      "name": "Упакованная вода",
+      "link": "/business/projects/water/",
+      "sectors": [
+        "food",
+        "horeca"
+      ]
+    },
+    {
+      "name": "Фотоаппараты и лампы-вспышки",
+      "link": "/business/projects/photo_cameras_and_flashbulbs/",
+      "sectors": [
+        "electronics"
+      ]
+    },
+    {
+      "name": "Шины и покрышки",
+      "link": "/business/projects/tyres/",
+      "sectors": [
+        "auto"
+      ]
+    }
+  ]
+}

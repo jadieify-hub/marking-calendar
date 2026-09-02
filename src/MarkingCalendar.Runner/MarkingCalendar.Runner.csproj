@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MarkingCalendar.Runner</RootNamespace>
+    <AssemblyName>MarkingCalendar.Runner</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MarkingCalendar.Core/MarkingCalendar.Core.csproj" />
+    <ProjectReference Include="../MarkingCalendar.Infrastructure/MarkingCalendar.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../MarkingCalendar.App/Resources/bundled-source.json"
+                      Link="Resources/bundled-source.json"
+                      LogicalName="MarkingCalendar.Resources.bundled-source.json" />
+    <EmbeddedResource Include="../MarkingCalendar.App/Resources/bundled-metadata.json"
+                      Link="Resources/bundled-metadata.json"
+                      LogicalName="MarkingCalendar.Resources.bundled-metadata.json" />
+  </ItemGroup>
+</Project>

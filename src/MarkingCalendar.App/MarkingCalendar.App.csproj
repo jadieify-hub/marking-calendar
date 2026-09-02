@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>MarkingCalendar.App</RootNamespace>
+    <AssemblyName>MarkingCalendar</AssemblyName>
+    <ApplicationIcon>Resources\calendar.ico</ApplicationIcon>
+    <StartupObject>MarkingCalendar.App.Program</StartupObject>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
+    <ProjectReference Include="../MarkingCalendar.Core/MarkingCalendar.Core.csproj" />
+    <ProjectReference Include="../MarkingCalendar.Infrastructure/MarkingCalendar.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\bundled-source.json" LogicalName="MarkingCalendar.Resources.bundled-source.json" />
+    <EmbeddedResource Include="Resources\bundled-metadata.json" LogicalName="MarkingCalendar.Resources.bundled-metadata.json" />
+    <EmbeddedResource Include="Resources\bundled-history.json" LogicalName="MarkingCalendar.Resources.bundled-history.json" />
+    <EmbeddedResource Include="Resources\bundled-groups.json" LogicalName="MarkingCalendar.Resources.bundled-groups.json" />
+  </ItemGroup>
+
+  <Target Name="BuildWebInterface" BeforeTargets="BeforeBuild" Condition="'$(SkipUiBuild)' != 'true'">
+    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)\..\MarkingCalendar.UI" />
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\..\MarkingCalendar.UI" />
+  </Target>
+
+  <Target Name="CopyWebInterfaceToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <WebInterfaceFiles Include="$(MSBuildProjectDirectory)\..\MarkingCalendar.UI\dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebInterfaceFiles)"
+          DestinationFiles="@(WebInterfaceFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyWebInterfaceToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedWebInterfaceFiles Include="$(MSBuildProjectDirectory)\..\MarkingCalendar.UI\dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishedWebInterfaceFiles)"
+          DestinationFiles="@(PublishedWebInterfaceFiles->'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

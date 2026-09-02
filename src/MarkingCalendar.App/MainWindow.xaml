@@ -1,0 +1,43 @@
+<Window x:Class="MarkingCalendar.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Календарь маркировки"
+        Width="1440" Height="900" MinWidth="900" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="#0D1118">
+    <Grid>
+        <wv2:WebView2 x:Name="Browser" Visibility="Collapsed" />
+
+        <Grid x:Name="LoadingPanel" Background="#0D1118">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border Width="48" Height="48" CornerRadius="14" Background="#6F91FF">
+                    <TextBlock Text="К" Foreground="White" FontSize="24" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Margin="0,18,0,0" Text="Календарь маркировки" Foreground="#F4F7FB"
+                           FontSize="21" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="ErrorPanel" Visibility="Collapsed" Background="#0D1118">
+            <Border Width="560" Padding="28" CornerRadius="20" BorderBrush="#293548" BorderThickness="1"
+                    Background="#141B25" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Не удалось открыть приложение" Foreground="#F4F7FB"
+                               FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock x:Name="ErrorMessage" Margin="0,12,0,0" Foreground="#C6D0DD"
+                               TextWrapping="Wrap" LineHeight="22" />
+                    <TextBlock x:Name="ErrorDetails" Margin="0,10,0,0" Foreground="#75849A"
+                               FontSize="12" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                        <Button x:Name="DependencyDownloadButton" Content="Скачать компонент" Height="42"
+                                Padding="16,0" Margin="0,0,10,0" Visibility="Collapsed"
+                                Click="DependencyDownloadButton_Click" />
+                        <Button Content="Закрыть" Width="110" Height="42" Click="CloseButton_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

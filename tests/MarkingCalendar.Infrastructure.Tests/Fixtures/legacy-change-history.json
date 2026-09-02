@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "checkedAt": "2026-09-02T09:00:00+03:00",
+  "latestBatchId": "legacy-original-id",
+  "batches": [
+    {
+      "id": "legacy-original-id",
+      "checkedAt": "2026-09-02T09:00:00+03:00",
+      "added": [
+        {
+          "start": "2026-10-01",
+          "end": "",
+          "period": "с 1 октября 2026",
+          "group": "Игрушки",
+          "type": "Розничная продажа",
+          "stage": "Передача сведений через ККТ",
+          "description": "Новый этап",
+          "url": "https://честныйзнак.рф/business/projects/children/"
+        }
+      ],
+      "removed": [],
+      "moved": [
+        {
+          "previous": {
+            "start": "2026-11-01",
+            "end": "",
+            "period": "с 1 ноября 2026",
+            "group": "Обувь",
+            "type": "Обязательная маркировка (ввод в оборот)",
+            "stage": "Ввод в оборот",
+            "description": "Прежняя дата",
+            "url": "https://честныйзнак.рф/business/projects/footwear/"
+          },
+          "event": {
+            "start": "2026-12-01",
+            "end": "",
+            "period": "с 1 декабря 2026",
+            "group": "Обувь",
+            "type": "Обязательная маркировка (ввод в оборот)",
+            "stage": "Ввод в оборот",
+            "description": "Новая дата",
+            "url": "https://честныйзнак.рф/business/projects/footwear/"
+          }
+        }
+      ],
+      "changed": []
+    }
+  ]
+}

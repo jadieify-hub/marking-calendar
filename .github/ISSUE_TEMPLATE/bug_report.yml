@@ -1,0 +1,64 @@
+name: Сообщить об ошибке
+description: Воспроизводимая проблема в Календаре маркировки
+title: "[Ошибка]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за сообщение. Не прикладывайте персональные данные и непроверенные файлы из локального каталога приложения.
+  - type: input
+    id: version
+    attributes:
+      label: Версия приложения
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: Вариант запуска
+      options:
+        - Setup
+        - Portable
+        - Сборка из исходников
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Версия Windows
+      placeholder: Windows 11 24H2 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как воспроизвести
+      description: Короткая последовательность действий от запуска приложения до ошибки.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактическое поведение
+    validations:
+      required: true
+  - type: input
+    id: data_status
+    attributes:
+      label: Статус данных в шапке
+      description: Например, «Данные актуальны», «Открыта встроенная версия» или текст ошибки.
+      placeholder: Данные актуальны · 02.09.2026, 10:00
+  - type: textarea
+    id: additional
+    attributes:
+      label: Дополнительная информация
+      description: В «О программе» нажмите «Открыть журнал». Приложите нужный app-*.log только после проверки на персональные данные. Сырые rejected-*.json публиковать не следует. Скриншоты также проверьте перед отправкой.

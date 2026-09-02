@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/MarkingCalendar.UI/package-lock.json
+
+      - name: Read version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "Некорректный тег версии: $version"
+          }
+          "value=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Refresh bundled data from public history
+        shell: pwsh
+        run: pwsh -NoProfile -File build/update-bundled.ps1 -FromPublic
+
+      - name: Build release artifacts
+        shell: pwsh
+        run: pwsh -NoProfile -File build/pack.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Verify release artifacts
+        shell: pwsh
+        run: pwsh -NoProfile -File build/verify-package.ps1
+
+      - name: Create Russian release notes
+        shell: pwsh
+        run: |
+          @"
+          ## Календарь маркировки ${{ steps.version.outputs.value }}
+
+          ### Установка
+
+          - **MarkingCalendar-Setup.exe** — рекомендуемая установка.
+          - **MarkingCalendar-Portable.zip** — переносимый архив.
+          - **SHA256SUMS.txt** — контрольные суммы.
+
+          Служебные файлы `releases.win.json` и `*-full.nupkg` используются автоматическим обновлением приложения.
+          "@ | Set-Content -LiteralPath artifacts/RELEASE_NOTES.md -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $package = (Get-ChildItem artifacts/MarkingCalendar-*-full.nupkg -File).FullName
+          gh release create '${{ github.ref_name }}' `
+            artifacts/MarkingCalendar-Setup.exe `
+            artifacts/MarkingCalendar-Portable.zip `
+            artifacts/SHA256SUMS.txt `
+            artifacts/releases.win.json `
+            $package `
+            --title "Календарь маркировки ${{ steps.version.outputs.value }}" `
+            --notes-file artifacts/RELEASE_NOTES.md

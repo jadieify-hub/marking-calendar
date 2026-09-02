@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "markingcalendar.core": {
+        "type": "Project"
+      },
+      "markingcalendar.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "MarkingCalendar.Core": "[1.0.0, )"
+        }
+      }
+    },
+    "net10.0/win-x64": {}
+  }
+}

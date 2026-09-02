@@ -1,0 +1,24 @@
+# .NET
+**/bin/
+**/obj/
+artifacts/
+build/.work/
+TestResults/
+*.user
+*.suo
+
+# Node
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+
+# IDE and OS
+.vs/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local application data and logs
+*.log
+*.tmp

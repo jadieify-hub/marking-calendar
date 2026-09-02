@@ -1,0 +1,66 @@
+KRS SOURCE-AVAILABLE LICENSE 1.0
+
+Copyright (c) 2026 KRS. Developer: Ruslan Kerusov (Руслан Керусов).
+All rights reserved except for the permissions expressly granted below.
+
+1. Permission
+
+KRS grants any person or organization a worldwide, royalty-free,
+non-exclusive permission to:
+
+a) view, study and copy the source code;
+b) run the Software for personal, educational, internal business and
+   commercial operational purposes;
+c) modify the Software for private or internal use; and
+d) redistribute an unmodified copy of the source code free of charge,
+   provided that this license, copyright notice, developer attribution and
+   a link to the official repository remain intact.
+
+2. Restrictions
+
+Without prior written permission from KRS, you may not:
+
+a) sell, sublicense, rent or charge for the Software or access to it;
+b) distribute modified source code or modified compiled builds;
+c) distribute compiled builds as official or trusted builds outside the
+   official GitHub Releases page;
+d) remove or obscure copyright, license, developer or publisher notices;
+e) use the names KRS or Руслан Керусов to endorse a modified product; or
+f) represent the Software as an official application of the operator of the
+   Russian product-marking system.
+
+Commercial use permitted by section 1(b) means using the Software in an
+organization's own operations or as a tool while providing other services.
+It does not include reselling the Software, charging separately for it, or
+distributing a modified version.
+
+3. Contributions
+
+Unless another written agreement is made, a contribution intentionally
+submitted to the official repository may be used and relicensed by KRS as
+part of the Software. The contributor retains copyright in their original
+work and warrants that they have the right to submit it.
+
+4. Third-party components and data
+
+Third-party components remain subject to their own licenses. Calendar data
+is obtained from external public sources and is not covered by this license.
+This project is independent and is not an official application of the
+operator of the Russian product-marking system.
+
+5. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL KRS
+OR THE DEVELOPER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+FROM THE SOFTWARE OR ITS USE.
+
+6. Termination
+
+The permissions granted by this license terminate automatically if you
+breach its terms. Rights not expressly granted are reserved by KRS.
+
+This license is source-available and is not an Open Source Initiative
+approved license.
+
