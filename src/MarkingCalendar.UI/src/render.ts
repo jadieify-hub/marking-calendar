@@ -37,6 +37,33 @@ const THEME_LABELS: Record<ThemePreference, string> = {
   light: "Светлая",
   dark: "Тёмная",
 };
+const GUIDE_STORAGE_KEY = "marking-calendar.guide.v1";
+const GUIDE_STEPS = [
+  {
+    target: "feed",
+    selector: '[data-guide="feed"]',
+    title: "Лента событий",
+    text: "События собраны по датам. «Подробнее» открывает полное описание и ссылку на источник.",
+  },
+  {
+    target: "filters",
+    selector: '[data-guide="filters"]',
+    title: "Фильтры",
+    text: "Слева можно оставить свои товарные группы, выбрать категории и показать прошедшие события.",
+  },
+  {
+    target: "changes",
+    selector: '[data-guide="changes"]',
+    title: "История изменений",
+    text: "Здесь видно, что добавилось, изменилось или перенеслось. Счётчик показывает непросмотренные записи.",
+  },
+  {
+    target: "settings",
+    selector: '[data-guide="settings"]',
+    title: "Настройки и справка",
+    text: "Профиль и справка находятся в меню «?». Тема выбирается рядом, в верхней панели.",
+  },
+] as const;
 
 type ActiveView = "calendar" | "changes";
 type OpenDialog = { readonly kind: "about" | "support" | "profile" } | {
@@ -71,6 +98,7 @@ interface UiState {
   activeView: ActiveView;
   dialog: OpenDialog | null;
   helpOpen: boolean;
+  guideStep: number | null;
   theme: ThemePreference;
   historyMode: "mine" | "all";
   hasSelectedGroups: boolean;
@@ -108,6 +136,7 @@ class TimelineRenderer implements MountedApp {
     activeView: "calendar",
     dialog: null,
     helpOpen: false,
+    guideStep: null,
     theme: "auto",
     historyMode: "all",
     hasSelectedGroups: false,
@@ -119,11 +148,14 @@ class TimelineRenderer implements MountedApp {
   private dialogController: DialogController | null = null;
   private profileDraft: ProfileDraft | null = null;
   private activeYear: number | null = null;
+  private guideCompleted: boolean;
+  private guideOpener: HTMLElement | null = null;
 
   public constructor(
     private readonly root: HTMLElement,
     private readonly send: CommandSink,
   ) {
+    this.guideCompleted = this.readGuideCompletion();
     this.mountShell();
     this.bindShell();
   }
@@ -145,6 +177,11 @@ class TimelineRenderer implements MountedApp {
     if (!model.profile.onboardingCompleted && this.state.dialog === null) {
       this.state.dialog = { kind: "profile" };
       this.profileDraft = this.createProfileDraft();
+    } else if (model.profile.onboardingCompleted
+      && !this.guideCompleted
+      && this.state.guideStep === null
+      && this.state.dialog === null) {
+      this.state.guideStep = 0;
     }
     this.renderOverlay();
     if (model.toast) showToast(
@@ -162,13 +199,14 @@ class TimelineRenderer implements MountedApp {
           <div class="brand"><span class="brand-mark" aria-hidden="true">К</span><div><h1>Календарь маркировки</h1><span class="brand-sub">Честный Знак</span></div></div>
           <nav class="view-tabs" aria-label="Разделы">
             <button type="button" class="view-tab is-active" data-view="calendar" aria-current="page">Календарь</button>
-            <button type="button" class="view-tab" data-view="changes">Изменения<span class="history-badge"></span></button>
+            <button type="button" class="view-tab" data-view="changes" data-guide="changes">Изменения<span class="history-badge"></span></button>
           </nav>
           <div class="theme-control"><span>Тема</span><div class="theme-menu-control"><button type="button" class="theme-current" data-theme-current aria-label="Выбрать тему" aria-haspopup="listbox" aria-expanded="false"></button><div class="theme-menu" role="listbox" aria-label="Темы оформления" hidden><button type="button" role="option" data-theme="auto">Авто</button><button type="button" role="option" data-theme="light">Светлая</button><button type="button" role="option" data-theme="dark">Тёмная</button></div></div></div>
           <button class="status" type="button" data-action="refresh"><span class="status-dot"></span><span class="status-copy"><strong></strong><small></small></span></button>
-          <div class="help-control">
+          <div class="help-control" data-guide="settings">
             <button class="help-button" type="button" aria-label="Справка" aria-haspopup="menu" aria-controls="help-menu" aria-expanded="false" data-action="help">?</button>
             <div class="help-menu" id="help-menu" role="menu" aria-label="Справка" hidden>
+              <button type="button" role="menuitem" data-action="guide">Краткий обзор</button>
               <button type="button" role="menuitem" data-action="profile">Настроить профиль</button>
               <button type="button" role="menuitem" data-action="support">Поддержать разработку</button>
               <button type="button" role="menuitem" data-action="about">О программе</button>
@@ -176,7 +214,7 @@ class TimelineRenderer implements MountedApp {
           </div>
         </header>
         <div class="layout">
-          <aside class="sidebar" aria-label="Фильтры календаря">
+          <aside class="sidebar" aria-label="Фильтры календаря" data-guide="filters">
             <section class="sidebar-section" data-section="groups">
               <h2>Товарные группы</h2>
               <div class="group-mode" aria-label="Режим товарных групп"><button type="button" data-group-mode="mine" aria-pressed="false">Только мои</button><button type="button" data-group-mode="all" aria-pressed="true">Все</button></div>
@@ -202,7 +240,7 @@ class TimelineRenderer implements MountedApp {
                 </nav>
               </div>
               <div class="feed-toolbar"><span class="filter-summary"></span><span class="feed-status" aria-live="polite"></span><button type="button" data-action="reset-filters">Сбросить фильтры</button></div>
-              <div class="timeline-feed"></div>
+              <div class="timeline-feed" data-guide="feed"></div>
               <div class="load-more"></div>
             </section>
             <section class="changes-view" aria-label="История изменений" hidden>
@@ -459,6 +497,10 @@ class TimelineRenderer implements MountedApp {
     });
     appShell.addEventListener("click", (event) => {
       if (!helpMenu.hidden && event.target instanceof Node && !helpControl.contains(event.target)) close();
+    });
+    required(this.root.querySelector<HTMLButtonElement>('[data-action="guide"]')).addEventListener("click", () => {
+      close();
+      this.startGuide(helpButton);
     });
     required(this.root.querySelector<HTMLButtonElement>('[data-action="support"]')).addEventListener("click", () => {
       close();
@@ -1150,7 +1192,129 @@ class TimelineRenderer implements MountedApp {
       this.showNotice(model.updateNotice);
       return;
     }
+    if (this.state.guideStep !== null) {
+      this.showGuide(opener);
+      return;
+    }
     this.closeOverlay(false);
+  }
+
+  private startGuide(opener?: HTMLElement): void {
+    this.state.activeView = "calendar";
+    this.renderViews();
+    this.state.guideStep = 0;
+    this.guideOpener = opener ?? this.helpButton();
+    this.renderOverlay(this.guideOpener);
+  }
+
+  private showGuide(opener?: HTMLElement): void {
+    const index = this.state.guideStep ?? 0;
+    const step = GUIDE_STEPS[index];
+    if (!step) {
+      this.finishGuide();
+      return;
+    }
+    const target = required(this.root.querySelector<HTMLElement>(step.selector));
+    target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+
+    const layer = required(this.root.querySelector<HTMLElement>(".modal-layer"));
+    layer.classList.add("is-guide");
+    const stage = document.createElement("div");
+    stage.className = "guide-stage";
+    const highlight = document.createElement("div");
+    highlight.className = "guide-highlight";
+    highlight.dataset.guideTarget = step.target;
+    this.positionGuideHighlight(highlight, target);
+
+    const dialog = document.createElement("section");
+    dialog.className = "guide-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "guide-title");
+    dialog.setAttribute("aria-describedby", "guide-text");
+    const heading = document.createElement("div");
+    heading.className = "guide-heading";
+    const progress = document.createElement("span");
+    progress.className = "guide-progress";
+    progress.textContent = `${index + 1} из ${GUIDE_STEPS.length}`;
+    const skip = actionButton("Пропустить");
+    skip.dataset.action = "guide-skip";
+    heading.append(progress, skip);
+    const title = document.createElement("h2");
+    title.id = "guide-title";
+    title.textContent = step.title;
+    const text = document.createElement("p");
+    text.id = "guide-text";
+    text.textContent = step.text;
+    const actions = document.createElement("div");
+    actions.className = "guide-actions";
+    const back = actionButton("Назад");
+    back.dataset.action = "guide-back";
+    back.disabled = index === 0;
+    const next = actionButton(index === GUIDE_STEPS.length - 1 ? "Готово" : "Далее", "primary");
+    next.dataset.action = "guide-next";
+    actions.append(back, next);
+    dialog.append(heading, title, text, actions);
+    stage.append(highlight, dialog);
+
+    this.guideOpener ??= opener ?? this.helpButton();
+    const controller = this.openOverlay(stage, this.guideOpener, next, () => this.completeGuide());
+    skip.addEventListener("click", controller.requestClose);
+    back.addEventListener("click", () => {
+      if (index === 0) return;
+      controller.close(false);
+      this.state.guideStep = index - 1;
+      this.showGuide(this.guideOpener ?? undefined);
+    });
+    next.addEventListener("click", () => {
+      if (index === GUIDE_STEPS.length - 1) {
+        controller.requestClose();
+        return;
+      }
+      controller.close(false);
+      this.state.guideStep = index + 1;
+      this.showGuide(this.guideOpener ?? undefined);
+    });
+  }
+
+  private positionGuideHighlight(highlight: HTMLElement, target: HTMLElement): void {
+    const rect = target.getBoundingClientRect();
+    const view = this.root.ownerDocument.defaultView;
+    const padding = 6;
+    const viewportWidth = view?.innerWidth ?? rect.right + padding;
+    const viewportHeight = view?.innerHeight ?? rect.bottom + padding;
+    const left = Math.max(6, rect.left - padding);
+    const top = Math.max(6, rect.top - padding);
+    highlight.style.left = `${left}px`;
+    highlight.style.top = `${top}px`;
+    highlight.style.width = `${Math.max(0, Math.min(rect.width + padding * 2, viewportWidth - left - 6))}px`;
+    highlight.style.height = `${Math.max(0, Math.min(rect.height + padding * 2, viewportHeight - top - 6))}px`;
+  }
+
+  private finishGuide(): void {
+    if (this.state.guideStep === null) return;
+    this.completeGuide();
+    this.closeOverlay(true);
+  }
+
+  private completeGuide(): void {
+    this.state.guideStep = null;
+    this.guideCompleted = true;
+    this.guideOpener = null;
+    this.root.querySelector<HTMLElement>(".modal-layer")?.classList.remove("is-guide");
+    try {
+      this.root.ownerDocument.defaultView?.localStorage.setItem(GUIDE_STORAGE_KEY, "done");
+    } catch {
+      // The guide still stays dismissed for the current session when storage is unavailable.
+    }
+  }
+
+  private readGuideCompletion(): boolean {
+    try {
+      return this.root.ownerDocument.defaultView?.localStorage.getItem(GUIDE_STORAGE_KEY) === "done";
+    } catch {
+      return false;
+    }
   }
 
   private showEvents(
@@ -1519,6 +1683,7 @@ class TimelineRenderer implements MountedApp {
     this.dialogController?.close(restoreFocus);
     this.dialogController = null;
     const layer = required(this.root.querySelector<HTMLElement>(".modal-layer"));
+    layer.classList.remove("is-guide");
     layer.hidden = true;
     layer.replaceChildren();
   }

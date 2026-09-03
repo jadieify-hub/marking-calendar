@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountApp, renderApp } from "./render";
 import type { AppViewModel } from "./contracts";
 
@@ -33,7 +33,13 @@ const model = {
   about: { name: "Календарь маркировки", version: "0.1.0", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/53698013", disclaimer: "Независимый проект", publicHistoryEnabled: true },
 } as const;
 
+const GUIDE_STORAGE_KEY = "marking-calendar.guide.v1";
+
 describe("renderApp", () => {
+  beforeEach(() => {
+    localStorage.setItem(GUIDE_STORAGE_KEY, "done");
+  });
+
   it("uses the browser's default interface scale", () => {
     const root = document.createElement("div");
 
@@ -942,6 +948,63 @@ describe("renderApp", () => {
 
     expect(send).toHaveBeenNthCalledWith(1, { type: "openExternal", url: model.about.supportUrl });
     expect(send).toHaveBeenNthCalledWith(2, { type: "copySupportUrl" });
+  });
+
+  it("shows the concise interface guide once after profile setup and remembers dismissal", () => {
+    localStorage.removeItem(GUIDE_STORAGE_KEY);
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, model, send);
+
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Лента событий");
+    expect(root.querySelector(".guide-progress")?.textContent).toBe("1 из 4");
+    expect(root.querySelector(".guide-highlight")?.getAttribute("data-guide-target")).toBe("feed");
+
+    root.querySelector<HTMLButtonElement>('[data-action="guide-next"]')?.click();
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Фильтры");
+    expect(root.querySelector(".guide-highlight")?.getAttribute("data-guide-target")).toBe("filters");
+
+    root.querySelector<HTMLButtonElement>('[data-action="guide-next"]')?.click();
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("История изменений");
+    expect(root.querySelector(".guide-highlight")?.getAttribute("data-guide-target")).toBe("changes");
+
+    root.querySelector<HTMLButtonElement>('[data-action="guide-next"]')?.click();
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Настройки и справка");
+    expect(root.querySelector(".guide-highlight")?.getAttribute("data-guide-target")).toBe("settings");
+    expect(root.querySelector<HTMLButtonElement>('[data-action="guide-next"]')?.textContent).toBe("Готово");
+
+    root.querySelector<HTMLButtonElement>('[data-action="guide-next"]')?.click();
+    expect(root.querySelector(".guide-dialog")).toBeNull();
+    expect(localStorage.getItem(GUIDE_STORAGE_KEY)).toBe("done");
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("waits for the initial profile setup before opening the interface guide", () => {
+    localStorage.removeItem(GUIDE_STORAGE_KEY);
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+
+    mounted.update({ ...model, profile: { ...model.profile, onboardingCompleted: false } });
+    expect(root.querySelector(".profile-dialog")).not.toBeNull();
+    expect(root.querySelector(".guide-dialog")).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('[data-action="profile-skip"]')?.click();
+    mounted.update(model);
+
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Лента событий");
+  });
+
+  it("reopens the interface guide from Help without changing application state", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, model, send);
+
+    expect(root.querySelector(".guide-dialog")).toBeNull();
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')?.click();
+    root.querySelector<HTMLButtonElement>('[data-action="guide"]')?.click();
+
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Лента событий");
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("closes a dialog with Escape and restores focus to its opener", () => {
