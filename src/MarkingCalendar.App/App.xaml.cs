@@ -1,4 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 using MarkingCalendar.App.Hosting;
 using MarkingCalendar.Infrastructure.Diagnostics;
@@ -11,6 +14,7 @@ public partial class App : Application
 {
     private AppBootstrapper? _bootstrapper;
     private FileAppLogger? _logger;
+    private WindowPlacementStore? _windowPlacementStore;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -19,8 +23,21 @@ public partial class App : Application
         _logger = new FileAppLogger(paths, TimeProvider.System);
         RegisterUnhandledErrorLogging();
         _logger.Log(AppLogLevel.Info, "startup", $"Запуск приложения {ProductInfo.Version}.");
-        var window = new MainWindow(_logger);
+        var writer = new AtomicFileWriter();
+        _windowPlacementStore = new WindowPlacementStore(paths, writer);
+        WindowPlacementState? placement = null;
+        try
+        {
+            placement = await _windowPlacementStore.LoadAsync(CancellationToken.None);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            _logger.Log(AppLogLevel.Warning, "window", "Не удалось восстановить положение окна.", error);
+        }
+        var window = new MainWindow(paths.BrowserDataDirectory, _logger);
         MainWindow = window;
+        WindowPlacementController.Restore(window, placement);
+        window.Closing += MainWindow_Closing;
         window.Show();
         _bootstrapper = new AppBootstrapper(window, _logger);
         try
@@ -48,6 +65,22 @@ public partial class App : Application
         _bootstrapper?.Dispose();
         UnregisterUnhandledErrorLogging();
         base.OnExit(e);
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (e.Cancel || sender is not Window window || _windowPlacementStore is null) return;
+        try
+        {
+            _windowPlacementStore
+                .SaveAsync(WindowPlacementController.Capture(window), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            _logger?.Log(AppLogLevel.Warning, "window", "Не удалось сохранить положение окна.", error);
+        }
     }
 
     private void RegisterUnhandledErrorLogging()

@@ -12,11 +12,14 @@ public partial class MainWindow : Window
     private WebMessageRouter? _router;
     private Uri? _dependencyDownloadUri;
     private readonly IAppLogger? _logger;
+    private readonly string _browserDataDirectory;
     private Func<string, Task>? _reportCommandFailure;
     private string _titleBarTheme = "dark";
 
-    public MainWindow(IAppLogger? logger = null)
+    public MainWindow(string browserDataDirectory, IAppLogger? logger = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(browserDataDirectory);
+        _browserDataDirectory = Path.GetFullPath(browserDataDirectory);
         _logger = logger;
         InitializeComponent();
         SourceInitialized += (_, _) => TitleBarTheme.Apply(this, _titleBarTheme);
@@ -48,7 +51,8 @@ public partial class MainWindow : Window
 
         try
         {
-            await Browser.EnsureCoreWebView2Async();
+            var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: _browserDataDirectory);
+            await Browser.EnsureCoreWebView2Async(environment);
         }
         catch (WebView2RuntimeNotFoundException error)
         {

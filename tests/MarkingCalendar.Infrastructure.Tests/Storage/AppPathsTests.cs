@@ -14,4 +14,13 @@ public sealed class AppPathsTests
             paths.RootDirectory,
             StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void BrowserDataDirectory_StaysInsideWritableApplicationStorage()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "marking-calendar-paths");
+        var paths = new AppPaths(root);
+
+        Assert.Equal(Path.Combine(Path.GetFullPath(root), "webview2"), paths.BrowserDataDirectory);
+    }
 }
