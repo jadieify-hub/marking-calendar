@@ -39,13 +39,15 @@ pwsh -File build/test-update-bundled.ps1
 
 ## Публичная история календаря
 
+Автоматическая публикация выполняется на self-hosted runner под Windows с российским IP-адресом. Подготовка runner описана в [docs/self-hosted-runner.md](docs/self-hosted-runner.md). GitHub-hosted runner использовать нельзя: официальный источник отвечает ему HTTP 403.
+
 Без записи файлов проверить источник локально можно так:
 
 ```powershell
 dotnet run --project src/MarkingCalendar.Runner/MarkingCalendar.Runner.csproj -c Release -- check --data build/.work/history-data --dry-run
 ```
 
-Ручной запуск публикации выполняется на GitHub во вкладке Actions → `Public calendar history` → `Run workflow` либо через GitHub CLI:
+Ручной запуск публикации выполняется на GitHub во вкладке Actions → `Public calendar history` → `Run workflow` либо через GitHub CLI. Он начнётся только при подключённом self-hosted runner с меткой `marking-calendar`; без runner запуск останется в очереди.
 
 ```powershell
 gh workflow run history.yml --ref main

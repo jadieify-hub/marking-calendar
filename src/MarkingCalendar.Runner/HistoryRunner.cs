@@ -150,7 +150,11 @@ public sealed class HistoryRunner(
         }
         catch (CalendarSourceException error) when (error.Code is CalendarSourceError.NetworkFailure or CalendarSourceError.HttpFailure)
         {
-            return new HistoryRunResult(HistoryRunnerExitCode.NetworkError, $"NETWORK_ERROR: {error.Message}");
+            var hint = error.Code == CalendarSourceError.HttpFailure
+                && error.Message.Contains("HTTP 403", StringComparison.Ordinal)
+                    ? " источник блокирует запросы не из РФ, запускайте runner с российского адреса."
+                    : string.Empty;
+            return new HistoryRunResult(HistoryRunnerExitCode.NetworkError, $"NETWORK_ERROR: {error.Message}{hint}");
         }
         catch (CalendarSourceException error) when (error.Code == CalendarSourceError.InvalidPayload)
         {

@@ -155,6 +155,28 @@ public sealed class HistoryRunnerTests
     }
 
     [Fact]
+    public async Task CheckAsync_HttpForbiddenExplainsRussianRunnerRequirement()
+    {
+        using var temp = new TemporaryDirectory();
+        var baseline = Snapshot(Enumerable.Range(1, 120).Select(Event).ToArray());
+        var runner = new HistoryRunner(
+            new ForbiddenSource(),
+            baseline,
+            new SnapshotValidator(),
+            new EventDiffEngine(),
+            new AtomicFileWriter(),
+            new FixedTimeProvider());
+
+        var result = await runner.CheckAsync(new HistoryCheckOptions(temp.Path), CancellationToken.None);
+
+        Assert.Equal(HistoryRunnerExitCode.NetworkError, result.ExitCode);
+        Assert.Contains(
+            "источник блокирует запросы не из РФ, запускайте runner с российского адреса",
+            result.Output,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CheckAsync_InvalidSourcePayloadIsRejectedAndPreserved()
     {
         using var temp = new TemporaryDirectory();
@@ -238,6 +260,15 @@ public sealed class HistoryRunnerTests
 
         public Task<CalendarSourcePayload> FetchWithRawAsync(CancellationToken cancellationToken) =>
             throw new CalendarSourceException(CalendarSourceError.NetworkFailure, "offline");
+    }
+
+    private sealed class ForbiddenSource : IRawCalendarSource
+    {
+        public Task<CalendarSnapshot> FetchAsync(CancellationToken cancellationToken) =>
+            throw new CalendarSourceException(CalendarSourceError.HttpFailure, "Источник календаря вернул HTTP 403.");
+
+        public Task<CalendarSourcePayload> FetchWithRawAsync(CancellationToken cancellationToken) =>
+            throw new CalendarSourceException(CalendarSourceError.HttpFailure, "Источник календаря вернул HTTP 403.");
     }
 
     private sealed class InvalidSource : IRawCalendarSource
