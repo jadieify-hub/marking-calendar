@@ -9,10 +9,10 @@ namespace MarkingCalendar.Core.Tests.Changes;
 public sealed class PublicHistoryFormatterTests
 {
     [Fact]
-    public void Markdown_ProducesStableRussianHistoryForThreeBatches()
+    public void Markdown_ProducesStableRussianHistoryForThreeBatchesIncludingEndOnlyMove()
     {
-        var previous = Event("old", "Молочная продукция", "Старый этап", new DateOnly(2026, 12, 1));
-        var current = Event("new", "Молочная продукция", "Новый этап", new DateOnly(2027, 6, 1));
+        var previous = IntervalEvent("old", new DateOnly(2025, 12, 1), new DateOnly(2026, 8, 31));
+        var current = IntervalEvent("new", new DateOnly(2025, 12, 1), new DateOnly(2027, 2, 28));
         var history = new ChangeHistory([
             Batch("batch-3", new DateTimeOffset(2026, 9, 2, 6, 0, 0, TimeSpan.Zero), new ChangeSet([], [], [EventChange.Moved(previous, current)], [])),
             Batch("batch-2", new DateTimeOffset(2026, 9, 1, 6, 0, 0, TimeSpan.Zero), new ChangeSet([Event("added", "Обувь", "Старт", new DateOnly(2026, 10, 1))], [], [], [])),
@@ -31,11 +31,9 @@ public sealed class PublicHistoryFormatterTests
 
             **Перенесено (1)**
 
-            - Молочная продукция — Розничная продажа: 01.12.2026 → 01.06.2027. Новый этап
-              - этап — было: Старый этап
-              - этап — стало: Новый этап
-              - период — было: с 01.12.2026
-              - период — стало: с 01.06.2027
+            - Детские игрушки — Розничная продажа: Окончание: 31.08.2026 → 28.02.2027. Маркировка остатков
+              - период — было: 01.12.2025–31.08.2026
+              - период — стало: 01.12.2025–28.02.2027
 
             ## 01.09.2026, 09:00 МСК — 1 изменение
 
@@ -59,7 +57,11 @@ public sealed class PublicHistoryFormatterTests
             .Select(index => Batch(
                 $"batch-{index:00}",
                 new DateTimeOffset(2026, 9, 2, 6, 0, 0, TimeSpan.Zero).AddMinutes(index),
-                new ChangeSet([Event($"event-{index}", $"Группа {index}", "Старт", new DateOnly(2026, 10, 1))], [], [], [])))
+                index == 55
+                    ? new ChangeSet([], [], [EventChange.Moved(
+                        IntervalEvent("old", new DateOnly(2025, 12, 1), new DateOnly(2026, 8, 31)),
+                        IntervalEvent("new", new DateOnly(2025, 12, 1), new DateOnly(2027, 2, 28)))], [])
+                    : new ChangeSet([Event($"event-{index}", $"Группа {index}", "Старт", new DateOnly(2026, 10, 1))], [], [], [])))
             .ToArray();
 
         var xml = AtomFeedWriter.Write(
@@ -76,6 +78,16 @@ public sealed class PublicHistoryFormatterTests
         Assert.Equal("batch-55", entries[0].Element(atom + "id")?.Value);
         Assert.Equal(TimeSpan.FromHours(3), DateTimeOffset.Parse(entries[0].Element(atom + "updated")!.Value, System.Globalization.CultureInfo.InvariantCulture).Offset);
         Assert.Equal("text", entries[0].Element(atom + "content")?.Attribute("type")?.Value);
+        Assert.Equal(
+            """
+            Календарь маркировки — изменения от 02.09.2026 09:55
+            Перенесено 1, добавлено 0, изменено 0, удалено 0
+            Изменения (1):
+            • Детские игрушки — Розничная продажа: Окончание: 31.08.2026 → 28.02.2027, формулировка изменена.
+              Маркировка остатков
+            Источник: честныйзнак.рф, проверено приложением «Календарь маркировки»
+            """.ReplaceLineEndings("\n"),
+            entries[0].Element(atom + "content")?.Value);
     }
 
     [Fact]
@@ -110,4 +122,16 @@ public sealed class PublicHistoryFormatterTests
 
     private static CalendarEvent Event(string id, string group, string stage, DateOnly date) =>
         new(id, date, null, $"с {date:dd.MM.yyyy}", group, "Розничная продажа", stage, "Описание", null);
+
+    private static CalendarEvent IntervalEvent(string id, DateOnly start, DateOnly end) =>
+        new(
+            id,
+            start,
+            end,
+            $"{start:dd.MM.yyyy}–{end:dd.MM.yyyy}",
+            "Детские игрушки",
+            "Розничная продажа",
+            "Маркировка остатков",
+            "Описание",
+            null);
 }

@@ -60,7 +60,7 @@ public static class ChangeMarkdownFormatter
 
     private static void AppendMoved(List<string> lines, EventChange change)
     {
-        lines.Add($"- {EventPrefix(change.Current)}: {Date(change.Previous)} → {Date(change.Current)}. {Escape(change.Current.Stage)}");
+        lines.Add($"- {EventPrefix(change.Current)}: {EventPeriodChangeFormatter.Format(change)}. {Escape(change.Current.Stage)}");
         AppendChangedFields(lines, change.GetChangedFields());
     }
 

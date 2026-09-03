@@ -59,11 +59,7 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
 
     private static ChangeSummary MoveSummary(EventChange change, IReadOnlySet<string> selectedGroups)
     {
-        var detail = change.Previous.Start == change.Current.Start && change.Previous.End != change.Current.End
-            ? $"Окончание: {FormatDate(change.Previous.End)} → {FormatDate(change.Current.End)}"
-            : change.Previous.Start != change.Current.Start && change.Previous.End != change.Current.End
-                ? $"Период: {FormatRange(change.Previous)} → {FormatRange(change.Current)}"
-                : $"{FormatDate(EventDate(change.Previous))} → {FormatDate(EventDate(change.Current))}";
+        var detail = EventPeriodChangeFormatter.Format(change);
         if (change.WordingChanged)
         {
             detail += ", формулировка изменена";
@@ -87,16 +83,6 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
             changedFields,
             selectedGroups.Count > 0 && selectedGroups.Contains(GroupKey.Normalize(item.Group)),
             EventClassifier.Classify(item.Type, item.Stage));
-
-    private static string FormatRange(CalendarEvent item)
-    {
-        if (item.Start is not null && item.End is not null && item.Start != item.End)
-        {
-            return $"{FormatDate(item.Start)}–{FormatDate(item.End)}";
-        }
-
-        return FormatDate(EventDate(item));
-    }
 
     private static string FormatDate(DateOnly? date) =>
         date?.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("ru-RU")) ?? "дата не указана";

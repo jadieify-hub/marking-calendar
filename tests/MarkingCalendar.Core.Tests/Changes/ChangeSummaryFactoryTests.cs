@@ -22,6 +22,20 @@ public sealed class ChangeSummaryFactoryTests
     }
 
     [Fact]
+    public void Create_FormatsChangedIntervalBoundariesAsPeriod()
+    {
+        var previous = E("2026-09-01", "Игрушки") with { End = new DateOnly(2026, 11, 1) };
+        var current = E("2026-10-01", "Игрушки") with { End = new DateOnly(2026, 12, 1) };
+        var set = new ChangeSet([], [], [EventChange.Moved(previous, current)], []);
+
+        var result = new ChangeSummaryFactory().Create(set, 8, new DateOnly(2026, 9, 2), new HashSet<string>());
+
+        Assert.Equal(
+            "Период: 01.09.2026–01.11.2026 → 01.10.2026–01.12.2026",
+            Assert.Single(result.Items).Detail);
+    }
+
+    [Fact]
     public void Create_LimitsItemsToEightAndSortsNearestFutureFirst()
     {
         var added = Enumerable.Range(1, 12)
