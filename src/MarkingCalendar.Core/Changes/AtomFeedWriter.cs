@@ -18,7 +18,7 @@ public static class AtomFeedWriter
             .Take(50)
             .ToArray();
         var output = new StringBuilder();
-        using var text = new StringWriter(output, CultureInfo.InvariantCulture);
+        using var text = new Utf8StringWriter(output);
         using var writer = XmlWriter.Create(text, new XmlWriterSettings
         {
             Indent = true,
@@ -58,5 +58,10 @@ public static class AtomFeedWriter
         writer.WriteEndDocument();
         writer.Flush();
         return output.ToString();
+    }
+
+    private sealed class Utf8StringWriter(StringBuilder builder) : StringWriter(builder, CultureInfo.InvariantCulture)
+    {
+        public override Encoding Encoding => Encoding.UTF8;
     }
 }

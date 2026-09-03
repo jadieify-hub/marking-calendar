@@ -1,3 +1,4 @@
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using MarkingCalendar.Core.Changes;
@@ -65,7 +66,8 @@ public sealed class PublicHistoryFormatterTests
             new ChangeHistory(batches),
             new Uri("https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md"),
             new DateOnly(2026, 9, 2));
-        using var reader = XmlReader.Create(new StringReader(xml));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        using var reader = XmlReader.Create(stream);
         var document = XDocument.Load(reader);
         XNamespace atom = "http://www.w3.org/2005/Atom";
         var entries = document.Root?.Elements(atom + "entry").ToArray() ?? [];

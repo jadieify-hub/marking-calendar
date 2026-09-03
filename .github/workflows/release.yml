@@ -34,10 +34,6 @@ jobs:
           }
           "value=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Refresh bundled data from public history
-        shell: pwsh
-        run: pwsh -NoProfile -File build/update-bundled.ps1 -FromPublic
-
       - name: Build release artifacts
         shell: pwsh
         run: pwsh -NoProfile -File build/pack.ps1 -Version '${{ steps.version.outputs.value }}'
