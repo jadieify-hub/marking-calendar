@@ -19,6 +19,7 @@ import {
   type FeedMonth,
 } from "./feed";
 import { wordDiff, type DiffSegment } from "./wordDiff";
+import { createProductGroupIcon } from "./productGroupIcon";
 
 const MONTHS = [
   "январь", "февраль", "март", "апрель", "май", "июнь",
@@ -614,6 +615,7 @@ class TimelineRenderer implements MountedApp {
       checkbox.dataset.group = group.key;
       checkbox.checked = this.state.selectedGroups.has(group.key);
       const name = document.createElement("span");
+      name.className = "group-name";
       name.textContent = group.name;
       if (group.isNew) {
         const badge = document.createElement("small");
@@ -636,7 +638,7 @@ class TimelineRenderer implements MountedApp {
       const count = document.createElement("span");
       count.className = "filter-count";
       count.textContent = String(group.filteredCount);
-      label.append(checkbox, name, count);
+      label.append(checkbox, createProductGroupIcon(group.name), name, count);
       list.append(label);
     }
     this.root.querySelectorAll<HTMLButtonElement>("[data-group-mode]").forEach((button) => {
@@ -924,6 +926,7 @@ class TimelineRenderer implements MountedApp {
     article.className = "feed-card";
     const title = document.createElement("h3");
     title.className = "card-title";
+    title.append(createProductGroupIcon(card.group));
     appendHighlighted(title, card.group, this.state.query);
     const rows = document.createElement("div");
     rows.className = "card-rows";

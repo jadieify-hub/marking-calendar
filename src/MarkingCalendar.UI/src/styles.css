@@ -144,6 +144,8 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .group-list label:hover { background: var(--surface-soft); color: var(--text); }
 .group-list label.is-empty { color: var(--muted); background: color-mix(in srgb, var(--surface) 72%, var(--bg)); }
 .group-list input { flex: none; margin: 2px 0 0; accent-color: var(--accent); }
+.product-group-icon { display: inline-grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; color: color-mix(in srgb, var(--accent) 72%, var(--text)); opacity: .88; }
+.product-group-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .filter-count { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .category-list { display: flex; flex-direction: column; gap: 3px; }
 .category-filter { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 5px 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-soft); text-align: left; cursor: pointer; }
@@ -200,7 +202,8 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .feed-cards { display: grid; gap: 8px; }
 .feed-card { position: relative; margin: 0; padding: 12px 14px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-soft); }
 .feed-card:hover { border-color: var(--muted); box-shadow: var(--shadow); }
-.card-title { display: block; margin: 0 0 7px; font-size: 14px; font-weight: 650; }
+.card-title { display: flex; align-items: center; gap: 7px; margin: 0 0 7px; font-size: 14px; font-weight: 650; }
+.card-title .product-group-icon { width: 20px; height: 20px; flex-basis: 20px; }
 .card-rows { display: grid; gap: 6px; }
 .card-details { min-height: 40px; margin: 2px 0 -8px; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 11.5px; cursor: pointer; }
 .card-details::after { position: absolute; inset: 0; border-radius: inherit; content: ""; }
@@ -371,7 +374,7 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
   .layout { min-height: 0; flex: 1; }
   .sidebar { min-height: 0; gap: 12px; }
   .sidebar-section { gap: 6px; }
-  .group-list { max-height: clamp(176px, calc(100vh - 670px), 246px); }
+  .group-list { max-height: clamp(176px, calc(100vh - 670px), 440px); }
   .category-filter { min-height: 36px; }
   .toggle { min-height: 38px; }
   .content { height: 100%; overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; scrollbar-gutter: stable; }

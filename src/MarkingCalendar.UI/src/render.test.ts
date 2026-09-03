@@ -524,6 +524,26 @@ describe("renderApp", () => {
     expect(root.querySelector(".day-mark span")?.textContent).toBe("сегодня");
   });
 
+  it("shows distinct decorative icons without replacing product group names", () => {
+    const root = document.createElement("div");
+
+    renderApp(root, model, vi.fn());
+
+    const filterIcons = Array.from(root.querySelectorAll<HTMLElement>(".group-list .product-group-icon"));
+    expect(filterIcons).toHaveLength(2);
+    expect(new Set(filterIcons.map((icon) => icon.dataset.icon)).size).toBe(2);
+    expect(filterIcons.every((icon) => icon.getAttribute("aria-hidden") === "true")).toBe(true);
+    expect(root.querySelector('[data-group="игрушки"]')?.closest("label")?.textContent).toContain("Игрушки");
+    expect(root.querySelector('[data-group="обувь"]')?.closest("label")?.textContent).toContain("Обувь");
+
+    const cardIcons = Array.from(root.querySelectorAll<HTMLElement>(".card-title .product-group-icon"));
+    expect(cardIcons).toHaveLength(2);
+    expect(cardIcons.map((icon) => icon.dataset.icon)).toEqual(expect.arrayContaining(
+      filterIcons.map((icon) => icon.dataset.icon),
+    ));
+    expect(Array.from(root.querySelectorAll(".card-title"), (title) => title.textContent)).toEqual(["Игрушки", "Обувь"]);
+  });
+
   it("places the today divider before the next month heading", () => {
     const root = document.createElement("div");
     renderApp(root, {
@@ -546,7 +566,7 @@ describe("renderApp", () => {
 
     root.querySelector<HTMLButtonElement>('[data-category="retail"]')?.click();
     const groupLabels = Array.from(root.querySelectorAll<HTMLLabelElement>(".group-list label"));
-    expect(groupLabels.map((label) => label.querySelector("span")?.textContent)).toEqual(["Обувь", "Игрушки"]);
+    expect(groupLabels.map((label) => label.querySelector(".group-name")?.textContent)).toEqual(["Обувь", "Игрушки"]);
     expect(groupLabels[1]?.classList.contains("is-empty")).toBe(true);
     expect(groupLabels[1]?.querySelector(".filter-count")?.textContent).toBe("0");
 
