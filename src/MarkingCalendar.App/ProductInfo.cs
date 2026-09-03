@@ -8,7 +8,7 @@ public static class ProductInfo
     public static string Version { get; } =
         typeof(ProductInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
             .InformationalVersion.Split('+')[0]
-        ?? "0.1.4";
+        ?? "0.1.5";
     public const string Developer = "Руслан Керусов";
     public const string Publisher = "KRS";
     public const string RepositoryUrl = "https://github.com/jadieify-hub/marking-calendar";

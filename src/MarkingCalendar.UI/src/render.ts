@@ -38,6 +38,11 @@ const THEME_LABELS: Record<ThemePreference, string> = {
   dark: "Тёмная",
 };
 const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
+const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
+const SUPPORT_PROMPT_DELAY_MS = 30_000;
+const SUPPORT_PROMPT_MIN_LAUNCHES = 10;
+const SUPPORT_PROMPT_MIN_AGE_DAYS = 14;
+const SUPPORT_PROMPT_REPEAT_MONTHS = 6;
 const GUIDE_STEPS = [
   {
     target: "feed",
@@ -79,6 +84,13 @@ interface ProfileDraft {
   readonly sectors: Set<string>;
   readonly manualGroups: Map<string, boolean>;
   groups: Set<string>;
+}
+
+interface SupportPromptState {
+  readonly firstSeen: string;
+  readonly launchCount: number;
+  readonly lastShown: string | null;
+  readonly disabled: boolean;
 }
 
 interface UiState {
@@ -150,6 +162,9 @@ class TimelineRenderer implements MountedApp {
   private activeYear: number | null = null;
   private guideCompleted: boolean;
   private guideOpener: HTMLElement | null = null;
+  private supportPromptState: SupportPromptState | null = null;
+  private supportPromptTimer: number | null = null;
+  private supportLaunchRecorded = false;
 
   public constructor(
     private readonly root: HTMLElement,
@@ -184,6 +199,7 @@ class TimelineRenderer implements MountedApp {
       this.state.guideStep = 0;
     }
     this.renderOverlay();
+    this.scheduleSupportPrompt();
     if (model.toast) showToast(
       required(this.root.querySelector<HTMLElement>(".toast")),
       model.toast,
@@ -504,6 +520,7 @@ class TimelineRenderer implements MountedApp {
     });
     required(this.root.querySelector<HTMLButtonElement>('[data-action="support"]')).addEventListener("click", () => {
       close();
+      if (this.model) this.postponeSupportPrompt(this.model.today);
       this.state.dialog = { kind: "support" };
       this.renderOverlay(helpButton);
     });
@@ -1417,6 +1434,124 @@ class TimelineRenderer implements MountedApp {
     close.addEventListener("click", controller.requestClose);
   }
 
+  private scheduleSupportPrompt(): void {
+    const model = this.requireModel();
+    if (!this.supportLaunchRecorded) {
+      this.supportLaunchRecorded = true;
+      this.supportPromptState = this.registerSupportLaunch(model.today);
+    }
+    const visiblePrompt = this.root.querySelector<HTMLElement>(".support-prompt");
+    if (visiblePrompt && !this.canShowSupportPrompt(model)) {
+      visiblePrompt.remove();
+      return;
+    }
+    if (this.supportPromptTimer !== null
+      || visiblePrompt
+      || !this.supportPromptState
+      || !isSupportPromptDue(this.supportPromptState, model.today)
+      || !this.canShowSupportPrompt(model)) return;
+
+    const view = this.root.ownerDocument.defaultView;
+    if (!view) return;
+    this.supportPromptTimer = view.setTimeout(() => {
+      this.supportPromptTimer = null;
+      const currentModel = this.model;
+      if (!currentModel
+        || !this.supportPromptState
+        || !isSupportPromptDue(this.supportPromptState, currentModel.today)
+        || !this.canShowSupportPrompt(currentModel)) return;
+      this.showSupportPrompt(currentModel);
+    }, SUPPORT_PROMPT_DELAY_MS);
+  }
+
+  private canShowSupportPrompt(model: AppViewModel): boolean {
+    return model.profile.onboardingCompleted
+      && this.guideCompleted
+      && this.state.guideStep === null
+      && this.state.dialog === null
+      && model.updateNotice === null
+      && model.toast === null
+      && model.status.kind !== "checking"
+      && model.status.kind !== "error"
+      && model.appUpdate.kind === "current";
+  }
+
+  private showSupportPrompt(model: AppViewModel): void {
+    if (!this.supportPromptState) return;
+    this.postponeSupportPrompt(model.today);
+
+    const prompt = document.createElement("aside");
+    prompt.className = "support-prompt";
+    prompt.setAttribute("role", "dialog");
+    prompt.setAttribute("aria-labelledby", "support-prompt-title");
+    const title = document.createElement("h2");
+    title.id = "support-prompt-title";
+    title.textContent = "Поддержать разработку";
+    const text = document.createElement("p");
+    text.textContent = "Если календарь оказался полезен, можно поддержать его развитие. Это необязательно — приложение останется бесплатным.";
+    const actions = document.createElement("div");
+    actions.className = "support-prompt-actions";
+    const support = actionButton("Поддержать", "primary");
+    support.dataset.action = "support-prompt-open";
+    const later = actionButton("Не сейчас");
+    later.dataset.action = "support-prompt-later";
+    const disable = actionButton("Больше не показывать");
+    disable.dataset.action = "support-prompt-disable";
+    actions.append(support, later, disable);
+    prompt.append(title, text, actions);
+
+    const close = (): void => prompt.remove();
+    support.addEventListener("click", () => {
+      this.send({ type: "openExternal", url: model.about.supportUrl });
+      close();
+    });
+    later.addEventListener("click", close);
+    disable.addEventListener("click", () => {
+      if (this.supportPromptState) {
+        this.supportPromptState = { ...this.supportPromptState, disabled: true };
+        this.saveSupportPromptState(this.supportPromptState);
+      }
+      close();
+    });
+    required(this.root.querySelector<HTMLElement>(".app-shell")).append(prompt);
+  }
+
+  private postponeSupportPrompt(today: string): void {
+    if (!this.supportPromptState) return;
+    this.supportPromptState = { ...this.supportPromptState, lastShown: today };
+    this.saveSupportPromptState(this.supportPromptState);
+  }
+
+  private registerSupportLaunch(today: string): SupportPromptState | null {
+    try {
+      const storage = this.root.ownerDocument.defaultView?.localStorage;
+      if (!storage) return null;
+      const raw = storage.getItem(SUPPORT_PROMPT_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) as Partial<SupportPromptState> : null;
+      const previousLaunchCount = typeof parsed?.launchCount === "number" && Number.isInteger(parsed.launchCount)
+        ? parsed.launchCount
+        : 0;
+      const state: SupportPromptState = {
+        firstSeen: isIsoDate(parsed?.firstSeen) ? parsed.firstSeen : today,
+        launchCount: Math.max(0, previousLaunchCount) + 1,
+        lastShown: isIsoDate(parsed?.lastShown) ? parsed.lastShown : null,
+        disabled: parsed?.disabled === true,
+      };
+      storage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify(state));
+      return state;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveSupportPromptState(state: SupportPromptState): void {
+    try {
+      this.root.ownerDocument.defaultView?.localStorage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // The reminder stays closed for the current session when storage is unavailable.
+    }
+  }
+
   private showAbout(opener?: HTMLElement): void {
     const model = this.requireModel();
     const dialog = document.createElement("section");
@@ -2020,6 +2155,29 @@ function relativeDayLabel(today: string, date: string): string {
   const days = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   if (days === 0) return "сегодня";
   return `через ${pluralNoun(days, "день", "дня", "дней")}`;
+}
+
+function isSupportPromptDue(state: SupportPromptState, today: string): boolean {
+  if (state.disabled || state.launchCount < SUPPORT_PROMPT_MIN_LAUNCHES) return false;
+  const todayTime = isoDateTime(today);
+  const firstSeenTime = isoDateTime(state.firstSeen);
+  if (todayTime === null || firstSeenTime === null
+    || todayTime - firstSeenTime < SUPPORT_PROMPT_MIN_AGE_DAYS * 86_400_000) return false;
+  if (!state.lastShown) return true;
+  const lastShownTime = isoDateTime(state.lastShown);
+  if (lastShownTime === null) return true;
+  const nextDate = new Date(lastShownTime);
+  nextDate.setUTCMonth(nextDate.getUTCMonth() + SUPPORT_PROMPT_REPEAT_MONTHS);
+  return todayTime >= nextDate.getTime();
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && isoDateTime(value) !== null;
+}
+
+function isoDateTime(value: string): number | null {
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isNaN(timestamp) ? null : timestamp;
 }
 
 function pluralNoun(count: number, one: string, few: string, many: string): string {

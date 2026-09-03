@@ -317,6 +317,10 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .group-completed-badge { color: var(--muted); font-size: 10px; font-weight: 500; }
 .group-renamed-from { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 400; }
 .support-dialog { width: min(560px, 100%); text-align: center; }
+.support-prompt { position: fixed; z-index: 15; right: 24px; bottom: 24px; width: min(440px, calc(100vw - 48px)); padding: 18px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--surface-raised) 97%, transparent); box-shadow: 0 20px 60px rgb(0 0 0 / 28%); animation: guide-enter 180ms ease-out; }
+.support-prompt h2 { margin: 0 0 7px; font-size: 18px; letter-spacing: -.02em; }
+.support-prompt p { margin: 0; color: var(--text-soft); line-height: 1.5; }
+.support-prompt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .support-qr { display: block; width: min(296px, 100%); height: auto; margin: 8px auto 16px; border: 10px solid white; border-radius: 12px; image-rendering: pixelated; }
 .support-url { display: block; overflow-wrap: anywhere; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 12.5px; }
 .support-dialog .dialog-actions { flex-wrap: wrap; }

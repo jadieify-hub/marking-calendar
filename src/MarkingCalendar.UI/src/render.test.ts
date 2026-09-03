@@ -30,13 +30,15 @@ const model = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.4", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
 } as const;
 
 const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
+const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
 
 describe("renderApp", () => {
   beforeEach(() => {
+    localStorage.clear();
     localStorage.setItem(GUIDE_STORAGE_KEY, "done");
   });
 
@@ -948,6 +950,117 @@ describe("renderApp", () => {
 
     expect(send).toHaveBeenNthCalledWith(1, { type: "openExternal", url: model.about.supportUrl });
     expect(send).toHaveBeenNthCalledWith(2, { type: "copySupportUrl" });
+  });
+
+  it("offers optional support after ten launches and fourteen days without blocking startup", () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify({
+        firstSeen: "2026-08-19",
+        launchCount: 9,
+        lastShown: null,
+        disabled: false,
+      }));
+      const root = document.createElement("div");
+      const send = vi.fn();
+
+      renderApp(root, model, send);
+      expect(root.querySelector(".support-prompt")).toBeNull();
+
+      vi.advanceTimersByTime(30_000);
+
+      const prompt = root.querySelector<HTMLElement>(".support-prompt");
+      expect(prompt?.textContent).toContain("Если календарь оказался полезен");
+      expect(prompt?.getAttribute("aria-modal")).toBeNull();
+      prompt?.querySelector<HTMLButtonElement>('[data-action="support-prompt-open"]')?.click();
+      expect(send).toHaveBeenCalledWith({ type: "openExternal", url: model.about.supportUrl });
+      expect(root.querySelector(".support-prompt")).toBeNull();
+
+      const saved = JSON.parse(localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY) ?? "{}");
+      expect(saved).toEqual({
+        firstSeen: "2026-08-19",
+        launchCount: 10,
+        lastShown: "2026-09-02",
+        disabled: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never offers support again after the user disables the reminder", () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify({
+        firstSeen: "2026-01-01",
+        launchCount: 9,
+        lastShown: null,
+        disabled: false,
+      }));
+      const firstRoot = document.createElement("div");
+      renderApp(firstRoot, model, vi.fn());
+      vi.advanceTimersByTime(30_000);
+      firstRoot.querySelector<HTMLButtonElement>('[data-action="support-prompt-disable"]')?.click();
+
+      const secondRoot = document.createElement("div");
+      renderApp(secondRoot, { ...model, today: "2027-09-02" }, vi.fn());
+      vi.advanceTimersByTime(30_000);
+
+      expect(secondRoot.querySelector(".support-prompt")).toBeNull();
+      expect(JSON.parse(localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY) ?? "{}").disabled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes the support reminder when an application update starts", () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify({
+        firstSeen: "2026-01-01",
+        launchCount: 9,
+        lastShown: null,
+        disabled: false,
+      }));
+      const root = document.createElement("div");
+      const mounted = mountApp(root, vi.fn());
+      mounted.update(model);
+      vi.advanceTimersByTime(30_000);
+      expect(root.querySelector(".support-prompt")).not.toBeNull();
+
+      mounted.update({
+        ...model,
+        appUpdate: { kind: "checking", message: "Проверяем обновление…", progress: null, version: null, canRestart: false },
+      });
+
+      expect(root.querySelector(".support-prompt")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not prompt after the support page was opened manually", () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(SUPPORT_PROMPT_STORAGE_KEY, JSON.stringify({
+        firstSeen: "2026-01-01",
+        launchCount: 9,
+        lastShown: null,
+        disabled: false,
+      }));
+      const root = document.createElement("div");
+      renderApp(root, model, vi.fn());
+
+      root.querySelector<HTMLButtonElement>('[data-action="help"]')?.click();
+      root.querySelector<HTMLButtonElement>('[data-action="support"]')?.click();
+      root.querySelector<HTMLButtonElement>(".support-dialog .dialog-button:last-child")?.click();
+      vi.advanceTimersByTime(30_000);
+
+      expect(root.querySelector(".support-prompt")).toBeNull();
+      expect(JSON.parse(localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY) ?? "{}").lastShown).toBe("2026-09-02");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows the concise interface guide once after profile setup and remembers dismissal", () => {
