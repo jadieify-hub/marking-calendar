@@ -8,7 +8,7 @@ public sealed class MarkingCalendarClient(
     HttpClient httpClient,
     IEventNormalizer normalizer,
     TimeProvider timeProvider,
-    string version = "0.1.2",
+    string version = "0.1.3",
     Uri? endpoint = null) : IRawCalendarSource
 {
     public static Uri Endpoint { get; } = new("https://xn--80ajghhoc2aj1c8b.xn--p1ai/bitrix/services/main/ajax.php?mode=class&c=dev%3AmarkingCalendar&action=getSheduleList");
@@ -16,7 +16,7 @@ public sealed class MarkingCalendarClient(
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     private readonly CalendarPayloadParser _parser = new(normalizer ?? throw new ArgumentNullException(nameof(normalizer)));
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-    private readonly string _version = string.IsNullOrWhiteSpace(version) ? "0.1.2" : version;
+    private readonly string _version = string.IsNullOrWhiteSpace(version) ? "0.1.3" : version;
     private readonly Uri _endpoint = endpoint ?? Endpoint;
 
     public async Task<CalendarSnapshot> FetchAsync(CancellationToken cancellationToken)

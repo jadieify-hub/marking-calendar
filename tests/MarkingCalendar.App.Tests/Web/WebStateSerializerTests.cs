@@ -24,7 +24,7 @@ public sealed class WebStateSerializerTests
             null,
             null,
             new AppUpdateViewModel("current", "Установлена последняя версия", null, null, false),
-            new ProductViewModel("Календарь маркировки", "0.1.2", "Руслан Керусов", "KRS", "https://github.com/jadieify-hub/marking-calendar", "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", "https://pay.cloudtips.ru/p/a18da555", "Независимый проект"),
+            new ProductViewModel("Календарь маркировки", "0.1.3", "Руслан Керусов", "KRS", "https://github.com/jadieify-hub/marking-calendar", "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", "https://pay.cloudtips.ru/p/a18da555", "Независимый проект"),
             []);
 
         var json = WebStateSerializer.Serialize(model);

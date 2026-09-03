@@ -279,7 +279,7 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .guide-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .guide-actions .dialog-button { min-width: 88px; }
 @keyframes guide-enter { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
-.dialog { width: min(650px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto; padding: 23px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); }
+.dialog { width: min(650px, 100%); max-height: 90vh; overflow: auto; padding: 23px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); }
 .dialog h2 { margin: 0 0 16px; font-size: 24px; letter-spacing: -.025em; }
 .dialog h3 { margin: 16px 0 7px; font-size: 16px; }
 .dialog p { color: var(--text-soft); line-height: 1.55; }
