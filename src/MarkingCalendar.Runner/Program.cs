@@ -66,7 +66,7 @@ public static class Program
                 .LoadAsync(source, metadata, CancellationToken.None)
                 .ConfigureAwait(false);
             using var httpClient = new HttpClient();
-            var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.1.5";
+            var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.1.6";
             var runner = new HistoryRunner(
                 new MarkingCalendarClient(httpClient, new EventNormalizer(), TimeProvider.System, version, check.SourceUrl),
                 bundled,

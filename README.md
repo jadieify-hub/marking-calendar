@@ -99,7 +99,7 @@ Pop-Location
 Сборка локального релиза:
 
 ```powershell
-pwsh -File build/pack.ps1 -Version 0.1.5
+pwsh -File build/pack.ps1 -Version 0.1.6
 pwsh -File build/verify-package.ps1
 ```
 

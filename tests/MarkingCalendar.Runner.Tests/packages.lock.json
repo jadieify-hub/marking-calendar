@@ -115,14 +115,14 @@
       "markingcalendar.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MarkingCalendar.Core": "[0.1.5, )"
+          "MarkingCalendar.Core": "[0.1.6, )"
         }
       },
       "markingcalendar.runner": {
         "type": "Project",
         "dependencies": {
-          "MarkingCalendar.Core": "[0.1.5, )",
-          "MarkingCalendar.Infrastructure": "[0.1.5, )"
+          "MarkingCalendar.Core": "[0.1.6, )",
+          "MarkingCalendar.Infrastructure": "[0.1.6, )"
         }
       }
     },

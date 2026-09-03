@@ -36,13 +36,20 @@ public partial class MainWindow : Window
         TitleBarTheme.Apply(this, preference);
     }
 
-    public async Task InitializeBrowserAsync(
+    public Task InitializeBrowserAsync(
         WebMessageRouter router,
         Func<string, Task> reportCommandFailure,
         CancellationToken cancellationToken)
     {
         _router = router ?? throw new ArgumentNullException(nameof(router));
         _reportCommandFailure = reportCommandFailure ?? throw new ArgumentNullException(nameof(reportCommandFailure));
+        return UiDispatcher.InvokeAsync(
+            Dispatcher,
+            () => InitializeBrowserCoreAsync(cancellationToken));
+    }
+
+    private async Task InitializeBrowserCoreAsync(CancellationToken cancellationToken)
+    {
         var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
         if (!File.Exists(Path.Combine(webRoot, "index.html")))
         {

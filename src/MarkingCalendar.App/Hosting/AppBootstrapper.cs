@@ -70,7 +70,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         var bundledGroups = await LoadBundledGroupsAsync(cancellationToken);
         try
         {
-            _groupMap = await _groupMapStore.LoadAsync(cancellationToken).ConfigureAwait(false) ?? bundledGroups;
+            _groupMap = await _groupMapStore.LoadAsync(cancellationToken) ?? bundledGroups;
         }
         catch (InvalidDataException error)
         {
