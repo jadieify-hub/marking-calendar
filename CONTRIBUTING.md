@@ -39,7 +39,7 @@ pwsh -File build/test-update-bundled.ps1
 
 ## Публичная история календаря
 
-Автоматическая публикация выполняется на self-hosted runner под Windows с российским IP-адресом. Подготовка runner описана в [docs/self-hosted-runner.md](docs/self-hosted-runner.md). GitHub-hosted runner использовать нельзя: официальный источник отвечает ему HTTP 403.
+Автоматическая публикация выполняется на self-hosted runner под Linux с российским IP-адресом. Подготовка runner описана в [docs/self-hosted-runner.md](docs/self-hosted-runner.md). GitHub-hosted runner использовать нельзя: официальный источник отвечает ему HTTP 403.
 
 Без записи файлов проверить источник локально можно так:
 

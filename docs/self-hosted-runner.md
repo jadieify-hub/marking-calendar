@@ -1,32 +1,40 @@
 # Self-hosted runner для публичной истории
 
-Официальный источник календаря отвечает GitHub-hosted runner кодом HTTP 403. Для ежедневного обновления ветки `data` нужен self-hosted runner под Windows, выходящий в интернет с российского IP-адреса. Подойдёт постоянно включённый ПК или Windows VPS в РФ.
+Официальный источник календаря отвечает GitHub-hosted runner кодом HTTP 403. Для ежедневного обновления ветки `data` нужен self-hosted runner на Linux, выходящий в интернет с российского IP-адреса. Подойдёт постоянно работающий VPS в РФ.
 
 ## Требования
 
-- Windows x64;
-- доступ к `github.com`, `api.github.com`, `api.telegram.org` и `честныйзнак.рф`;
-- Git, PowerShell 7 и .NET SDK 10;
-- отдельная непривилегированная учётная запись Windows для службы runner;
+- Linux x64 (рекомендуется актуальная Ubuntu Server или Debian);
+- доступ к `github.com`, `api.github.com`, `api.telegram.org` и `честныйзнак.рф` по HTTPS;
+- Git, `curl`, Python 3 и .NET SDK 10;
+- отдельный непривилегированный пользователь Linux для службы runner;
 - стабильное подключение к интернету в 06:00 UTC.
 
-Не устанавливайте runner на компьютер с секретами, к которым не должна иметь доступ автоматическая сборка. Runner, зарегистрированный на уровне репозитория, получает задания только из `jadieify-hub/marking-calendar`, но его процесс имеет права своей учётной записи Windows.
+Входящие порты для runner открывать не требуется: он сам подключается к GitHub. Не храните на VPS секреты, к которым не должна иметь доступ автоматическая сборка. Runner, зарегистрированный на уровне репозитория, получает задания только из `jadieify-hub/marking-calendar`, но workflow выполняется с правами пользователя службы.
 
 ## Регистрация
 
-1. Откройте репозиторий на GitHub: `Settings` → `Actions` → `Runners` → `New self-hosted runner`.
-2. Выберите Windows x64 и выполните показанные GitHub команды в отдельной папке, например `C:\ActionsRunner\marking-calendar`.
-3. При запуске `config.cmd` укажите URL именно этого репозитория, имя машины и дополнительную метку `marking-calendar`. Стандартные метки `self-hosted`, `Windows` и `X64` добавятся автоматически.
-4. Установите runner как службу Windows командой, которую предлагает мастер настройки (`--runasservice`). Для службы используйте отдельную непривилегированную учётную запись.
-5. Запустите службу и убедитесь, что runner отображается как `Idle` в `Settings` → `Actions` → `Runners`.
+1. Создайте на VPS отдельного пользователя, например `actions-runner`, и каталог для runner.
+2. Откройте репозиторий на GitHub: `Settings` → `Actions` → `Runners` → `New self-hosted runner`.
+3. Выберите Linux и x64, затем от имени созданного пользователя выполните команды скачивания и распаковки, показанные GitHub.
+4. В команде настройки `./config.sh` укажите URL именно этого репозитория и добавьте метку `marking-calendar` через параметр `--labels marking-calendar`. Стандартные метки `self-hosted`, `Linux` и `X64` добавятся автоматически.
+5. После успешной настройки установите runner как службу:
+
+   ```bash
+   sudo ./svc.sh install actions-runner
+   sudo ./svc.sh start
+   sudo ./svc.sh status
+   ```
+
+6. Убедитесь, что runner отображается как `Idle` в `Settings` → `Actions` → `Runners`.
 
 Workflow принимает только runner со всеми четырьмя метками:
 
 ```yaml
-runs-on: [self-hosted, windows, x64, marking-calendar]
+runs-on: [self-hosted, linux, x64, marking-calendar]
 ```
 
-Эта метка не позволяет случайно выполнить публикацию на другом self-hosted runner организации.
+Дополнительная метка не позволяет случайно выполнить публикацию на другом self-hosted runner организации.
 
 ## Первый запуск
 
@@ -40,11 +48,13 @@ runs-on: [self-hosted, windows, x64, marking-calendar]
 
 ## Если источник вернул HTTP 403
 
-Проверьте внешний IP-адрес runner и убедитесь, что он относится к российскому адресу. Затем с той же машины выполните запрос с User-Agent приложения:
+Проверьте внешний IP-адрес VPS и убедитесь, что он относится к российскому адресу. Затем с той же машины выполните запрос с User-Agent приложения:
 
-```powershell
-$headers = @{ 'User-Agent' = 'MarkingCalendar/0.1.6' }
-Invoke-WebRequest -Uri 'https://честныйзнак.рф/bitrix/services/main/ajax.php?mode=class&c=dev%3AmarkingCalendar&action=getSheduleList' -Headers $headers
+```bash
+curl --silent --show-error --output /dev/null \
+  --write-out '%{http_code}\n' \
+  --user-agent 'MarkingCalendar/0.1.6' \
+  'https://честныйзнак.рф/bitrix/services/main/ajax.php?mode=class&c=dev%3AmarkingCalendar&action=getSheduleList'
 ```
 
 Ответ должен иметь статус 200. Если российский адрес также получает 403, проверьте доступ в обычном браузере и повторите запрос позже. Не пытайтесь обходить блокировку через прокси или VPN с иностранными адресами: это возвращает проблему GitHub-hosted runner и делает публикацию ненадёжной.
