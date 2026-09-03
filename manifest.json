@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-03T09:02:52.2309431+00:00",
+  "snapshotId": "a536d1f2ee9758a6786f4c43567cbfc4611758c4690502a3de6bf5539f47359d",
+  "eventCount": 432,
+  "batchCount": 1,
+  "files": {
+    "current": "current.json",
+    "source": "source.json",
+    "history": "history/changes.json",
+    "changelog": "CHANGELOG.md",
+    "feed": "feed.xml"
+  },
+  "groupsUrl": "groups.json"
+}
