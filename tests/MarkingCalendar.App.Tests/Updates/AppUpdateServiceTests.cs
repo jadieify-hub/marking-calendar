@@ -59,7 +59,7 @@ public sealed class AppUpdateServiceTests
     }
 
     [Fact]
-    public async Task CheckAndDownloadAsync_KeepsFailureNonFatal()
+    public async Task CheckAndDownloadAsync_ExplainsThatNetworkFailureWillBeRetried()
     {
         var source = new FakeUpdateSource { Error = new HttpRequestException("offline") };
         var logger = new RecordingLogger();
@@ -68,7 +68,7 @@ public sealed class AppUpdateServiceTests
         await service.CheckAndDownloadAsync(CancellationToken.None);
 
         Assert.Equal(AppUpdateStage.Failed, service.State.Stage);
-        Assert.Equal("Не удалось проверить обновление приложения", service.State.Message);
+        Assert.Equal("Не удалось подключиться к GitHub. Проверим снова при следующем запуске", service.State.Message);
         var logged = Assert.Single(logger.Entries);
         Assert.Equal("app-update", logged.Source);
         Assert.IsType<HttpRequestException>(logged.Exception);

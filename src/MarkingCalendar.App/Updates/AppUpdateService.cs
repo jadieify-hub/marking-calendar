@@ -82,7 +82,7 @@ public sealed class AppUpdateService(
             _logger?.Log(AppLogLevel.Error, "app-update", "Не удалось проверить обновление приложения.", error);
             Publish(new AppUpdateState(
                 AppUpdateStage.Failed,
-                "Не удалось проверить обновление приложения"));
+                "Не удалось подключиться к GitHub. Проверим снова при следующем запуске"));
         }
         finally
         {

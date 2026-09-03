@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net8.0-windows7.0": {
       "Microsoft.Web.WebView2": {
         "type": "Direct",
         "requested": "[1.0.4191.47, )",
@@ -20,11 +20,11 @@
       "markingcalendar.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MarkingCalendar.Core": "[1.0.0, )"
+          "MarkingCalendar.Core": "[0.1.4, )"
         }
       }
     },
-    "net10.0-windows7.0/win-x64": {
+    "net8.0-windows7.0/win-x64": {
       "Microsoft.Web.WebView2": {
         "type": "Direct",
         "requested": "[1.0.4191.47, )",

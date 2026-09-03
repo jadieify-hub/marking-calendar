@@ -155,18 +155,18 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .toggle { display: flex; min-height: 40px; align-items: center; gap: 8px; color: var(--text-soft); font-size: 12.5px; cursor: pointer; }
 .toggle input { accent-color: var(--accent); }
 .content { min-width: 0; margin: 0; }
-.upcoming { margin-bottom: 17px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
-.upcoming-heading { display: flex; align-items: baseline; gap: 9px; margin-bottom: 10px; }
-.upcoming-heading h2 { margin: 0; font-size: 14px; }
-.upcoming-window { color: var(--muted); font-size: 11px; }
+.upcoming { margin-bottom: 17px; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
+.upcoming-heading { display: flex; align-items: baseline; gap: 9px; margin-bottom: 12px; }
+.upcoming-heading h2 { margin: 0; font-size: 15px; }
+.upcoming-window { color: var(--muted); font-size: 11.5px; }
 .upcoming-more { min-height: 40px; margin-left: auto; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 11.5px; cursor: pointer; }
-.upcoming-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.upcoming-tile { display: grid; min-width: 0; min-height: 106px; align-content: start; gap: 3px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); text-align: left; cursor: pointer; box-shadow: var(--shadow-soft); }
+.upcoming-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.upcoming-tile { display: grid; min-width: 0; min-height: 118px; align-content: start; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); text-align: left; cursor: pointer; box-shadow: var(--shadow-soft); }
 .upcoming-tile:hover { border-color: var(--muted); box-shadow: var(--shadow); }
-.upcoming-date { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.upcoming-relative { color: var(--accent); font-size: 10.5px; }
-.upcoming-tile strong { margin-top: 3px; overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
-.upcoming-groups { display: -webkit-box; overflow: hidden; color: var(--muted); font-size: 10.5px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.upcoming-date { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.upcoming-relative { color: var(--accent); font-size: 11px; }
+.upcoming-tile strong { margin-top: 3px; overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.upcoming-groups { display: -webkit-box; overflow: hidden; color: var(--muted); font-size: 11.5px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .upcoming-empty { margin: 0; color: var(--muted); font-size: 12px; }
 .change-badge, .move-count-badge { display: inline-flex; width: fit-content; align-items: center; min-height: 22px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--text-soft); font-size: 10.5px; font-weight: 650; line-height: 1.2; }
 .change-badge.change-added { border-color: color-mix(in srgb, #1e9a63 40%, var(--line)); }

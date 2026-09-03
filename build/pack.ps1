@@ -95,7 +95,7 @@ try {
             --packAuthors KRS `
             --icon $iconPath `
             --runtime win-x64 `
-            --framework net10-x64-desktop `
+            --framework net8-x64-desktop `
             --outputDir $velopackPath `
             --noPortable true
     }

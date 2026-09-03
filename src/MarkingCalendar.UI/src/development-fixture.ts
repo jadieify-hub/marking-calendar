@@ -51,7 +51,7 @@ export const developmentFixture: AppViewModel = {
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
   about: {
     name: "Календарь маркировки",
-    version: "0.1.3",
+    version: "0.1.4",
     developer: "Руслан Керусов",
     publisher: "KRS",
     repositoryUrl: "https://github.com/jadieify-hub/marking-calendar",

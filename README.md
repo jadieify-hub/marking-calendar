@@ -49,7 +49,7 @@ Windows-приложение с календарём этапов обязате
 - `MarkingCalendar-Portable.zip` — распакуйте архив и запустите `MarkingCalendar.exe`.
 - `SHA256SUMS.txt` — контрольные суммы файлов релиза.
 
-Требования: Windows 10/11 x64, [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) и [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+Требования: Windows 10/11 x64, [.NET 8 Desktop Runtime x64](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) и [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
 Setup проверяет наличие .NET Desktop Runtime и при необходимости предлагает его установить. Framework-dependent сборка намеренно не включает весь .NET в каждый релиз. Если запустить Portable без подходящего .NET, стандартный загрузчик Microsoft покажет требуемую версию и ссылку на скачивание. Отсутствие WebView2 приложение определяет самостоятельно и показывает официальную ссылку.
 
@@ -82,7 +82,7 @@ Portable-версия хранит данные там же, где устано
 
 ## Разработка
 
-Стек: .NET 10, WPF, WebView2, TypeScript, Vite/Vitest, xUnit и Velopack.
+Стек: .NET 8, WPF, WebView2, TypeScript, Vite/Vitest, xUnit и Velopack.
 
 ```powershell
 dotnet restore MarkingCalendar.slnx -r win-x64 --locked-mode
@@ -99,7 +99,7 @@ Pop-Location
 Сборка локального релиза:
 
 ```powershell
-pwsh -File build/pack.ps1 -Version 0.1.3
+pwsh -File build/pack.ps1 -Version 0.1.4
 pwsh -File build/verify-package.ps1
 ```
 
