@@ -6,7 +6,7 @@
 
 - Linux x64 (рекомендуется актуальная Ubuntu Server или Debian);
 - доступ к `github.com`, `api.github.com`, `api.telegram.org` и `честныйзнак.рф` по HTTPS;
-- Git, `curl`, Python 3 и .NET SDK 10;
+- Git, `curl` и Python 3; .NET SDK 10 устанавливается workflow в каталог пользователя runner;
 - отдельный непривилегированный пользователь Linux для службы runner;
 - стабильное подключение к интернету в 06:00 UTC.
 
