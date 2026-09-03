@@ -9,7 +9,7 @@ public sealed class WebMessageRouterTests
     [Theory]
     [InlineData("https://честныйзнак.рф/business/projects/beer/")]
     [InlineData("https://github.com/jadieify-hub/marking-calendar")]
-    [InlineData("https://pay.cloudtips.ru/p/53698013")]
+    [InlineData("https://pay.cloudtips.ru/p/a18da555")]
     public async Task HandleAsync_OpensOnlyTrustedHttpsTargets(string url)
     {
         var launcher = new RecordingLauncher();
@@ -45,7 +45,7 @@ public sealed class WebMessageRouterTests
         var result = await router.HandleAsync("{\"type\":\"copySupportUrl\"}", CancellationToken.None);
 
         Assert.Equal(WebCommandResult.Handled, result);
-        Assert.Equal("https://pay.cloudtips.ru/p/53698013", Assert.Single(clipboard.Values));
+        Assert.Equal("https://pay.cloudtips.ru/p/a18da555", Assert.Single(clipboard.Values));
     }
 
     [Fact]

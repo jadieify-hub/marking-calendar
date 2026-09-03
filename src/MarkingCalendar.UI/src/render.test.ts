@@ -30,10 +30,10 @@ const model = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.0", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/53698013", disclaimer: "Независимый проект", publicHistoryEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.2", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
 } as const;
 
-const GUIDE_STORAGE_KEY = "marking-calendar.guide.v1";
+const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 
 describe("renderApp", () => {
   beforeEach(() => {
@@ -977,6 +977,16 @@ describe("renderApp", () => {
     expect(root.querySelector(".guide-dialog")).toBeNull();
     expect(localStorage.getItem(GUIDE_STORAGE_KEY)).toBe("done");
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("shows the current interface guide when only the legacy guide was completed", () => {
+    localStorage.clear();
+    localStorage.setItem("marking-calendar.guide.v1", "done");
+    const root = document.createElement("div");
+
+    renderApp(root, model, vi.fn());
+
+    expect(root.querySelector(".guide-dialog")?.textContent).toContain("Лента событий");
   });
 
   it("waits for the initial profile setup before opening the interface guide", () => {

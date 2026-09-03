@@ -16,7 +16,7 @@ public sealed record PublicHistoryResult(
 public sealed class PublicHistoryClient(
     HttpClient httpClient,
     Uri manifestUrl,
-    string version = "0.1.1")
+    string version = "0.1.2")
 {
     private const int ManifestLimit = 1024 * 1024;
     private const int HistoryLimit = 10 * 1024 * 1024;
@@ -25,7 +25,7 @@ public sealed class PublicHistoryClient(
     private const string AllowedPathPrefix = "/jadieify-hub/marking-calendar/data/";
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     private readonly Uri _manifestUrl = ValidateUrl(manifestUrl ?? throw new ArgumentNullException(nameof(manifestUrl)));
-    private readonly string _version = string.IsNullOrWhiteSpace(version) ? "0.1.1" : version;
+    private readonly string _version = string.IsNullOrWhiteSpace(version) ? "0.1.2" : version;
 
     public async Task<PublicHistoryResult> FetchAsync(CancellationToken cancellationToken)
     {

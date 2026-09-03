@@ -18,7 +18,7 @@
 - Интерфейс открывается сразу с последним корректным или встроенным снимком.
 - Пустой, повреждённый или аномальный ответ не заменяет рабочие данные.
 - Категорийные фильтры одновременно являются легендой цветов и доступны с клавиатуры.
-- Поддержка разработчика ненавязчива; CloudTips URL: `https://pay.cloudtips.ru/p/53698013`.
+- Поддержка разработчика ненавязчива; CloudTips URL: `https://pay.cloudtips.ru/p/a18da555`.
 - Разработчик: Руслан Керусов; владелец/издатель: KRS.
 - Официальные бинарные сборки публикуются только в GitHub Releases репозитория `marking-calendar`.
 - Старый каталог `%LOCALAPPDATA%\CHZ-MarkingCalendar` при миграции не изменяется и не удаляется.
@@ -338,7 +338,7 @@ Commit: `feat: add WPF WebView2 application host`
 
 - [ ] **Step 1: Write failing product-info/support tests**
 
-Assert About data exposes `Календарь маркировки`, `Руслан Керусов`, `KRS`, repository URL and independent-project disclaimer; support command opens/copies exactly `https://pay.cloudtips.ru/p/53698013`.
+Assert About data exposes `Календарь маркировки`, `Руслан Керусов`, `KRS`, repository URL and independent-project disclaimer; support command opens/copies exactly `https://pay.cloudtips.ru/p/a18da555`.
 
 - [ ] **Step 2: Implement About and Support UI**
 

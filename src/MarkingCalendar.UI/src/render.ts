@@ -37,7 +37,7 @@ const THEME_LABELS: Record<ThemePreference, string> = {
   light: "Светлая",
   dark: "Тёмная",
 };
-const GUIDE_STORAGE_KEY = "marking-calendar.guide.v1";
+const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 const GUIDE_STEPS = [
   {
     target: "feed",

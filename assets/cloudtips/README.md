@@ -2,7 +2,7 @@
 
 Фон платежной формы: `calendar-cloudtips-480x220.png` (480×220 px, PNG).
 
-Страница приложения: `https://pay.cloudtips.ru/p/53698013`.
+Страница приложения: `https://pay.cloudtips.ru/p/a18da555`.
 
 ## Текст
 

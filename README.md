@@ -99,7 +99,7 @@ Pop-Location
 Сборка локального релиза:
 
 ```powershell
-pwsh -File build/pack.ps1 -Version 0.1.1
+pwsh -File build/pack.ps1 -Version 0.1.2
 pwsh -File build/verify-package.ps1
 ```
 
@@ -122,7 +122,7 @@ pwsh -File build/test-update-bundled.ps1
 
 - Разработчик: **Руслан Керусов**
 - Владелец и издатель: **KRS**
-- Поддержать разработку: [CloudTips](https://pay.cloudtips.ru/p/53698013)
+- Поддержать разработку: [CloudTips](https://pay.cloudtips.ru/p/a18da555)
 
 В приложении эта страница доступна через `Справка` → `Поддержать разработку`; она не показывается автоматически.
 

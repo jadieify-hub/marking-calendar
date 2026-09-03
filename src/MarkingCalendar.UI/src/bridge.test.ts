@@ -21,7 +21,7 @@ const validModel: AppViewModel = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.0", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/53698013", disclaimer: "Независимый проект", publicHistoryEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.2", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
 };
 
 describe("connectBridge", () => {
