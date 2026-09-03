@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>MarkingCalendar.Runner</RootNamespace>
     <AssemblyName>MarkingCalendar.Runner</AssemblyName>
-    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

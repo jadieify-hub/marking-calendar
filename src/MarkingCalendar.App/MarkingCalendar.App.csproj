@@ -7,7 +7,6 @@
     <AssemblyName>MarkingCalendar</AssemblyName>
     <ApplicationIcon>Resources\calendar.ico</ApplicationIcon>
     <StartupObject>MarkingCalendar.App.Program</StartupObject>
-    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
