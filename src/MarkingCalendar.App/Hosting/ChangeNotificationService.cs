@@ -9,6 +9,7 @@ public sealed class ChangeNotificationService : IDisposable
 {
     private readonly Icon _icon;
     private readonly NotifyIcon _notifyIcon;
+    private readonly System.Windows.Threading.DispatcherTimer _hideTimer;
     private Action? _clicked;
 
     public ChangeNotificationService()
@@ -19,6 +20,8 @@ public sealed class ChangeNotificationService : IDisposable
         using var sourceIcon = new Icon(stream);
         _icon = (Icon)sourceIcon.Clone();
         _notifyIcon = new NotifyIcon { Icon = _icon, Text = ProductInfo.Name };
+        _hideTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
+        _hideTimer.Tick += HideTimerTick;
         _notifyIcon.BalloonTipClicked += NotificationClicked;
         _notifyIcon.BalloonTipClosed += NotificationClosed;
     }
@@ -26,13 +29,16 @@ public sealed class ChangeNotificationService : IDisposable
     public void Show(int changeCount, Action clicked)
     {
         _clicked = clicked ?? throw new ArgumentNullException(nameof(clicked));
+        _hideTimer.Stop();
         _notifyIcon.Visible = true;
         _notifyIcon.ShowBalloonTip(10_000, ProductInfo.Name, $"Найдены изменения: {changeCount}", ToolTipIcon.Info);
+        _hideTimer.Start();
     }
 
     public void Dispose()
     {
-        _notifyIcon.Visible = false;
+        Hide();
+        _hideTimer.Tick -= HideTimerTick;
         _notifyIcon.BalloonTipClicked -= NotificationClicked;
         _notifyIcon.BalloonTipClosed -= NotificationClosed;
         _notifyIcon.Dispose();
@@ -41,14 +47,18 @@ public sealed class ChangeNotificationService : IDisposable
 
     private void NotificationClicked(object? sender, EventArgs e)
     {
-        _notifyIcon.Visible = false;
         var clicked = _clicked;
-        _clicked = null;
+        Hide();
         clicked?.Invoke();
     }
 
-    private void NotificationClosed(object? sender, EventArgs e)
+    private void NotificationClosed(object? sender, EventArgs e) => Hide();
+
+    private void HideTimerTick(object? sender, EventArgs e) => Hide();
+
+    private void Hide()
     {
+        _hideTimer.Stop();
         _notifyIcon.Visible = false;
         _clicked = null;
     }

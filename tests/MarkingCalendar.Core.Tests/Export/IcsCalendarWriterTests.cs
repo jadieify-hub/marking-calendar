@@ -18,7 +18,6 @@ public sealed class IcsCalendarWriterTests
             "VERSION:2.0\r\n" +
             "PRODID:-//KRS//Календарь маркировки 0.1.10//RU\r\n" +
             "CALSCALE:GREGORIAN\r\n" +
-            "METHOD:PUBLISH\r\n" +
             "BEGIN:VEVENT\r\n" +
             "UID:event-1@marking-calendar\r\n" +
             "DTSTAMP:20260904T101112Z\r\n" +
@@ -44,7 +43,6 @@ public sealed class IcsCalendarWriterTests
             "VERSION:2.0\r\n" +
             "PRODID:-//KRS//Календарь маркировки 0.1.10//RU\r\n" +
             "CALSCALE:GREGORIAN\r\n" +
-            "METHOD:PUBLISH\r\n" +
             EventSnapshot("second", "20261002", "20261005", "Обувь") +
             EventSnapshot("first", "20260901", "20260902", "Бакалея") +
             "END:VCALENDAR\r\n",

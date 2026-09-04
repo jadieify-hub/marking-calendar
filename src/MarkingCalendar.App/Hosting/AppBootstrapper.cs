@@ -215,9 +215,9 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             {
                 _notifiedBatchIds.Add(result.Batch.Id);
                 var batchId = result.Batch.Id;
-                _changeNotificationService?.Show(
-                    result.Batch.Changes.Total + result.Batch.Changes.GroupTotal,
-                    () => OpenChangeNotification(batchId));
+                var changeCount = result.Batch.Changes.Total + result.Batch.Changes.GroupTotal;
+                await _window.Dispatcher.InvokeAsync(() =>
+                    _changeNotificationService?.Show(changeCount, () => OpenChangeNotification(batchId)));
             }
             var presentation = _updatePresentationPolicy.Evaluate(result.Batch, _state);
             _notice = presentation.Notice;

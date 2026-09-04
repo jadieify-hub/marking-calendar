@@ -19,7 +19,6 @@ public sealed class IcsCalendarWriter(string productName, string productVersion,
         Append(result, "VERSION:2.0");
         Append(result, $"PRODID:-//KRS//{_productName} {_productVersion}//RU");
         Append(result, "CALSCALE:GREGORIAN");
-        Append(result, "METHOD:PUBLISH");
         var stamp = _timeProvider.GetUtcNow().UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
 
         foreach (var item in events)
