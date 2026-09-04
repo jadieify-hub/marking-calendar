@@ -12,5 +12,6 @@ const mounted = mountApp(root, (command) => send(command));
 const bridge = connectBridge(
   (model: AppViewModel) => mounted.update(model),
   import.meta.env.DEV ? developmentFixture : undefined,
+  (batchId) => mounted.openChanges(batchId),
 );
 send = bridge.send;

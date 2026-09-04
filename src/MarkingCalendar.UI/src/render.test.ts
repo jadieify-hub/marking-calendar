@@ -30,7 +30,7 @@ const model = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
 } as const;
 
 const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
@@ -101,6 +101,18 @@ describe("renderApp", () => {
       "Только мои",
       "Все",
     ]);
+  });
+
+  it("opens the changes view for a host notification", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    const mounted = mountApp(root, send);
+    mounted.update(model);
+
+    mounted.openChanges("batch-1");
+
+    expect(root.querySelector<HTMLElement>(".changes-view")?.hidden).toBe(false);
+    expect(send).toHaveBeenCalledWith({ type: "openChanges", batchId: "batch-1" });
   });
 
   it("exports exactly the events visible after filters", () => {
@@ -1298,6 +1310,12 @@ describe("renderApp", () => {
       publicHistory.checked = false;
       publicHistory.dispatchEvent(new Event("change", { bubbles: true }));
     }
+    const notifications = dialog?.querySelector<HTMLInputElement>('[data-action="change-notifications"]');
+    expect(notifications?.checked).toBe(true);
+    if (notifications) {
+      notifications.checked = false;
+      notifications.dispatchEvent(new Event("change", { bubbles: true }));
+    }
 
     dialog?.querySelector<HTMLButtonElement>('[data-action="open-repository"]')?.click();
     dialog?.querySelector<HTMLButtonElement>('[data-action="open-public-history"]')?.click();
@@ -1306,6 +1324,7 @@ describe("renderApp", () => {
     expect(send).toHaveBeenCalledWith({ type: "openExternal", url: model.about.historyUrl });
     expect(send).toHaveBeenCalledWith({ type: "openLogs" });
     expect(send).toHaveBeenCalledWith({ type: "setPublicHistory", enabled: false });
+    expect(send).toHaveBeenCalledWith({ type: "setChangeNotifications", enabled: false });
   });
 
   it("offers an explicit restart only after an application update is ready", () => {

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 using MarkingCalendar.App.Hosting;
@@ -91,6 +92,12 @@ public partial class MainWindow : Window
         var json = WebStateSerializer.Serialize(model);
         Browser.CoreWebView2.PostWebMessageAsJson(json);
         return Task.CompletedTask;
+    }
+
+    public void PostOpenChanges(string batchId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(batchId);
+        Browser.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "openChanges", batchId }));
     }
 
     public void ShowFatalError(string message, string details, Uri? downloadUri = null)

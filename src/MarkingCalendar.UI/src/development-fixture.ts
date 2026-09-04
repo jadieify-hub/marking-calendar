@@ -59,5 +59,6 @@ export const developmentFixture: AppViewModel = {
     supportUrl: "https://pay.cloudtips.ru/p/a18da555",
     disclaimer: "Независимый проект, не являющийся официальным приложением оператора системы маркировки.",
     publicHistoryEnabled: true,
+    changeNotificationsEnabled: true,
   },
 };

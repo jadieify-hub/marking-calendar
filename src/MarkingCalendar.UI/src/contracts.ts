@@ -133,6 +133,7 @@ export interface ProductViewModel {
   readonly supportUrl: string;
   readonly disclaimer: string;
   readonly publicHistoryEnabled: boolean;
+  readonly changeNotificationsEnabled: boolean;
 }
 
 export interface AppUpdateViewModel {
@@ -179,6 +180,7 @@ export type UiCommand =
   | { readonly type: "setGroups"; readonly groups: ReadonlyArray<string> }
   | { readonly type: "setTheme"; readonly theme: ThemePreference }
   | { readonly type: "setPublicHistory"; readonly enabled: boolean }
+  | { readonly type: "setChangeNotifications"; readonly enabled: boolean }
   | { readonly type: "hideGroupSuggestion"; readonly key: string }
   | { readonly type: "saveProfile"; readonly roles: ReadonlyArray<string>; readonly sectors: ReadonlyArray<string>; readonly groups: ReadonlyArray<string> }
   | { readonly type: "skipProfile" }

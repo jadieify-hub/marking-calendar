@@ -63,6 +63,7 @@ public sealed class AppViewModelFactoryTests
         Assert.Equal("Руслан Керусов", result.About.Developer);
         Assert.Equal("KRS", result.About.Publisher);
         Assert.Equal("https://github.com/jadieify-hub/marking-calendar", result.About.RepositoryUrl);
+        Assert.True(result.About.ChangeNotificationsEnabled);
         Assert.Equal("https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", result.About.HistoryUrl);
         Assert.Equal("https://pay.cloudtips.ru/p/a18da555", result.About.SupportUrl);
         Assert.Contains("Независимый проект", result.About.Disclaimer);

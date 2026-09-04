@@ -121,6 +121,7 @@ interface UiState {
 
 export interface MountedApp {
   update(model: AppViewModel): void;
+  openChanges(batchId: string): void;
 }
 
 export function mountApp(root: HTMLElement, send: CommandSink): MountedApp {
@@ -210,6 +211,14 @@ class TimelineRenderer implements MountedApp {
       (batchId) => this.openHistoryBatch(batchId),
     );
     if (scrolling) scrolling.scrollTop = scrollTop;
+  }
+
+  public openChanges(batchId: string): void {
+    if (!batchId) return;
+    this.state.dismissedNoticeIds.add(batchId);
+    this.state.dialog = null;
+    this.closeOverlay(false);
+    this.openHistoryBatch(batchId);
   }
 
   private mountShell(): void {
@@ -1666,6 +1675,19 @@ class TimelineRenderer implements MountedApp {
       type: "setPublicHistory",
       enabled: publicHistoryToggle.checked,
     }));
+    const notificationSetting = document.createElement("label");
+    notificationSetting.className = "public-history-setting";
+    const notificationToggle = document.createElement("input");
+    notificationToggle.type = "checkbox";
+    notificationToggle.checked = model.about.changeNotificationsEnabled;
+    notificationToggle.dataset.action = "change-notifications";
+    const notificationText = document.createElement("span");
+    notificationText.textContent = "Уведомлять об изменениях";
+    notificationSetting.append(notificationToggle, notificationText);
+    notificationToggle.addEventListener("change", () => this.send({
+      type: "setChangeNotifications",
+      enabled: notificationToggle.checked,
+    }));
     const updateStatus = document.createElement("div");
     updateStatus.className = "app-update-status";
     updateStatus.dataset.kind = model.appUpdate.kind;
@@ -1695,7 +1717,7 @@ class TimelineRenderer implements MountedApp {
     logs.addEventListener("click", () => this.send({ type: "openLogs" }));
     const close = actionButton("Закрыть");
     actions.append(repository, publicHistory, logs, close);
-    dialog.append(title, details, disclaimer, publicHistorySetting, updateStatus, actions);
+    dialog.append(title, details, disclaimer, publicHistorySetting, notificationSetting, updateStatus, actions);
     const controller = this.openOverlay(dialog, opener ?? this.helpButton(), repository, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);
   }

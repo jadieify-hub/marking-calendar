@@ -16,11 +16,12 @@ public sealed class AppStateStoreTests
 
             var loaded = await new AppStateStore(paths, new AtomicFileWriter()).LoadAsync(CancellationToken.None);
 
-            Assert.Equal(5, loaded.Version);
+            Assert.Equal(6, loaded.Version);
             Assert.Equal(["batch-42"], loaded.SeenBatchIds);
             Assert.Equal(["радиоэлектроника"], loaded.SelectedGroups);
             Assert.Equal("auto", loaded.Theme);
             Assert.True(loaded.PublicHistoryEnabled);
+            Assert.True(loaded.ChangeNotificationsEnabled);
             Assert.Null(loaded.LastPublicHistorySync);
             Assert.True(loaded.OnboardingCompleted);
         }
@@ -45,7 +46,7 @@ public sealed class AppStateStoreTests
                     ["Обувь", " Обувь ", "Игрушки", "Радиоэлектроника\u00a0"],
                     "dark",
                     false,
-                    new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero)),
+                    new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero)).WithChangeNotifications(false),
                 CancellationToken.None);
 
             var loaded = await store.LoadAsync(CancellationToken.None);
@@ -55,6 +56,7 @@ public sealed class AppStateStoreTests
             Assert.Empty(loaded.HiddenGroupSuggestions);
             Assert.Equal("dark", loaded.Theme);
             Assert.False(loaded.PublicHistoryEnabled);
+            Assert.False(loaded.ChangeNotificationsEnabled);
             Assert.Equal(new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero), loaded.LastPublicHistorySync);
             Assert.True(loaded.OnboardingCompleted);
         }
@@ -69,12 +71,13 @@ public sealed class AppStateStoreTests
     {
         var initial = new AppState(2, ["batch-1"], ["Старая"], "auto");
 
-        var updated = initial.WithGroups([" Обувь ", "обувь", "Игрушки"]).WithTheme("light");
+        var updated = initial.WithGroups([" Обувь ", "обувь", "Игрушки"]).WithTheme("light").WithChangeNotifications(false);
 
         Assert.Equal(["batch-1"], updated.SeenBatchIds);
         Assert.Equal(["игрушки", "обувь"], updated.SelectedGroups);
         Assert.Equal("light", updated.Theme);
         Assert.True(updated.PublicHistoryEnabled);
+        Assert.False(updated.ChangeNotificationsEnabled);
     }
 
     [Fact]

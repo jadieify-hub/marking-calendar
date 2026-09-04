@@ -146,6 +146,7 @@ public sealed class WebMessageRouterTests
         IReadOnlyList<string>? groups = null;
         string? theme = null;
         bool? publicHistoryEnabled = null;
+        bool? changeNotificationsEnabled = null;
         string? hiddenGroup = null;
         var router = new WebMessageRouter(
             new RecordingLauncher(),
@@ -157,11 +158,13 @@ public sealed class WebMessageRouterTests
                 (value, _) => { groups = value; return Task.CompletedTask; },
                 (value, _) => { theme = value; return Task.CompletedTask; },
                 (value, _) => { publicHistoryEnabled = value; return Task.CompletedTask; },
-                (value, _) => { hiddenGroup = value; return Task.CompletedTask; }));
+                (value, _) => { hiddenGroup = value; return Task.CompletedTask; },
+                SetChangeNotifications: (value, _) => { changeNotificationsEnabled = value; return Task.CompletedTask; }));
 
         var groupsResult = await router.HandleAsync("{\"type\":\"setGroups\",\"groups\":[\" Обувь \",\"Игрушки\",\"Обувь\"]}", CancellationToken.None);
         var themeResult = await router.HandleAsync("{\"type\":\"setTheme\",\"theme\":\"dark\"}", CancellationToken.None);
         var historyResult = await router.HandleAsync("{\"type\":\"setPublicHistory\",\"enabled\":false}", CancellationToken.None);
+        var notificationsResult = await router.HandleAsync("{\"type\":\"setChangeNotifications\",\"enabled\":false}", CancellationToken.None);
         var hideResult = await router.HandleAsync("{\"type\":\"hideGroupSuggestion\",\"key\":\" Игрушки \"}", CancellationToken.None);
 
         Assert.Equal(WebCommandResult.Handled, groupsResult);
@@ -170,6 +173,8 @@ public sealed class WebMessageRouterTests
         Assert.Equal("dark", theme);
         Assert.Equal(WebCommandResult.Handled, historyResult);
         Assert.False(publicHistoryEnabled);
+        Assert.Equal(WebCommandResult.Handled, notificationsResult);
+        Assert.False(changeNotificationsEnabled);
         Assert.Equal(WebCommandResult.Handled, hideResult);
         Assert.Equal("игрушки", hiddenGroup);
     }
@@ -208,6 +213,7 @@ public sealed class WebMessageRouterTests
     [InlineData("{\"type\":\"setGroups\",\"groups\":\"Обувь\"}")]
     [InlineData("{\"type\":\"setTheme\",\"theme\":\"neon\"}")]
     [InlineData("{\"type\":\"setPublicHistory\",\"enabled\":\"no\"}")]
+    [InlineData("{\"type\":\"setChangeNotifications\",\"enabled\":\"no\"}")]
     [InlineData("{\"type\":\"saveProfile\",\"roles\":\"retail\",\"sectors\":[],\"groups\":[]}")]
     public async Task HandleAsync_RejectsInvalidPreferences(string json)
     {

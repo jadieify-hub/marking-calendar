@@ -10,7 +10,7 @@ using MarkingCalendar.Infrastructure.Storage;
 namespace MarkingCalendar.App;
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "WPF Application releases the bootstrapper in OnExit.")]
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private AppBootstrapper? _bootstrapper;
     private FileAppLogger? _logger;

@@ -14,10 +14,11 @@ public sealed record AppState(
     IReadOnlyList<string> Roles = null!,
     IReadOnlyList<string> SelectedSectors = null!,
     IReadOnlyDictionary<string, bool> ManualGroups = null!,
-    bool OnboardingCompleted = false)
+    bool OnboardingCompleted = false,
+    bool ChangeNotificationsEnabled = true)
 {
     private static readonly HashSet<string> KnownRoles = ["retail", "producer", "wholesale"];
-    public static AppState Initial { get; } = new(5, [], [], "auto", true, null, [], [], [], new Dictionary<string, bool>(), false);
+    public static AppState Initial { get; } = new(6, [], [], "auto", true, null, [], [], [], new Dictionary<string, bool>(), false, true);
 
     public AppState WithSeen(IEnumerable<string> batchIds) => Normalize(this with
     {
@@ -65,6 +66,11 @@ public sealed record AppState(
         PublicHistoryEnabled = enabled
     });
 
+    public AppState WithChangeNotifications(bool enabled) => Normalize(this with
+    {
+        ChangeNotificationsEnabled = enabled
+    });
+
     public AppState WithPublicHistorySync(DateTimeOffset syncedAt, IEnumerable<string> seenBatchIds) => Normalize(this with
     {
         LastPublicHistorySync = syncedAt,
@@ -85,7 +91,7 @@ public sealed record AppState(
         var manualGroups = NormalizeManualGroups(state.ManualGroups);
         var theme = state.Theme is "light" or "dark" ? state.Theme : "auto";
         var onboardingCompleted = state.OnboardingCompleted || (state.Version < 5 && groups.Length > 0);
-        return new AppState(5, seen, groups, theme, state.PublicHistoryEnabled, state.LastPublicHistorySync, hiddenGroups, roles, sectors, manualGroups, onboardingCompleted);
+        return new AppState(6, seen, groups, theme, state.PublicHistoryEnabled, state.LastPublicHistorySync, hiddenGroups, roles, sectors, manualGroups, onboardingCompleted, state.ChangeNotificationsEnabled);
     }
 
     private static string[] NormalizeValues(IEnumerable<string>? values, StringComparer comparer) =>
@@ -138,7 +144,8 @@ public sealed class AppStateStore(AppPaths paths, IAtomicFileWriter writer)
             persisted.Roles ?? [],
             persisted.SelectedSectors ?? [],
             persisted.ManualGroups ?? new Dictionary<string, bool>(),
-            persisted.OnboardingCompleted ?? false));
+            persisted.OnboardingCompleted ?? false,
+            persisted.ChangeNotificationsEnabled ?? true));
     }
 
     public Task SaveAsync(AppState state, CancellationToken cancellationToken)
@@ -159,5 +166,6 @@ public sealed class AppStateStore(AppPaths paths, IAtomicFileWriter writer)
         IReadOnlyList<string>? Roles,
         IReadOnlyList<string>? SelectedSectors,
         IReadOnlyDictionary<string, bool>? ManualGroups,
-        bool? OnboardingCompleted);
+        bool? OnboardingCompleted,
+        bool? ChangeNotificationsEnabled);
 }

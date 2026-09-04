@@ -20,6 +20,7 @@ export interface UiBridge {
 export function connectBridge(
   receive: (model: AppViewModel) => void,
   developmentFixture?: AppViewModel,
+  openChanges?: (batchId: string) => void,
 ): UiBridge {
   const host = (window as HostWindow).chrome?.webview;
   if (!host) {
@@ -28,8 +29,9 @@ export function connectBridge(
   }
 
   host.addEventListener("message", (event) => {
-    if (!isRecord(event.data) || event.data.type !== "state" || !isAppViewModel(event.data.model)) return;
-    receive(event.data.model);
+    if (!isRecord(event.data)) return;
+    if (event.data.type === "state" && isAppViewModel(event.data.model)) receive(event.data.model);
+    else if (event.data.type === "openChanges" && typeof event.data.batchId === "string" && event.data.batchId.length > 0) openChanges?.(event.data.batchId);
   });
   const send: CommandSink = (command) => {
     if (command.type === "exportCalendar"
@@ -236,7 +238,8 @@ function isProduct(value: unknown): boolean {
     && typeof value.historyUrl === "string"
     && typeof value.supportUrl === "string"
     && typeof value.disclaimer === "string"
-    && typeof value.publicHistoryEnabled === "boolean";
+    && typeof value.publicHistoryEnabled === "boolean"
+    && typeof value.changeNotificationsEnabled === "boolean";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

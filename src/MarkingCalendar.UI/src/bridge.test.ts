@@ -21,7 +21,7 @@ const validModel: AppViewModel = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
 };
 
 describe("connectBridge", () => {
@@ -37,10 +37,13 @@ describe("connectBridge", () => {
       addEventListener: (_: "message", handler: (event: { data: unknown }) => void) => { listener = handler; },
     } } });
     const receive = vi.fn();
+    const openChanges = vi.fn();
 
-    const bridge = connectBridge(receive);
+    const bridge = connectBridge(receive, undefined, openChanges);
     listener?.({ data: { type: "state", model: validModel } });
     listener?.({ data: { type: "state", model: { events: "not-an-array" } } });
+    listener?.({ data: { type: "openChanges", batchId: "batch-1" } });
+    listener?.({ data: { type: "openChanges", batchId: "" } });
     bridge.send({ type: "refresh" });
     bridge.send({ type: "exportCalendar", eventIds: ["one", "two"] });
     bridge.send({ type: "exportCalendar", eventIds: [""] } as UiCommand);
@@ -51,6 +54,8 @@ describe("connectBridge", () => {
     expect(postMessage).toHaveBeenCalledTimes(3);
     expect(receive).toHaveBeenCalledOnce();
     expect(receive).toHaveBeenCalledWith(validModel);
+    expect(openChanges).toHaveBeenCalledOnce();
+    expect(openChanges).toHaveBeenCalledWith("batch-1");
   });
 
   it("uses an explicit development fixture when WebView2 is absent", async () => {

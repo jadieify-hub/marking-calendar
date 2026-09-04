@@ -3,7 +3,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Globalization;
 using System.Text;
-using Microsoft.Win32;
 using MarkingCalendar.App.Web;
 using MarkingCalendar.App.Updates;
 using MarkingCalendar.Core.Changes;
@@ -29,6 +28,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private GroupMapStore? _groupMapStore;
     private CalendarUpdateService? _updateService;
     private AppUpdateService? _appUpdateService;
+    private ChangeNotificationService? _changeNotificationService;
     private AppViewModelFactory? _viewModelFactory;
     private UpdatePresentationPolicy? _updatePresentationPolicy;
     private ChangeSummaryFactory? _summaryFactory;
@@ -48,6 +48,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private IReadOnlyList<string> _noticeRelatedBatchIds = [];
     private ToastViewModel? _toast;
     private AppStatusViewModel? _fallbackStatus;
+    private readonly HashSet<string> _notifiedBatchIds = new(StringComparer.Ordinal);
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -132,6 +133,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _logger);
         _appUpdateService = new AppUpdateService(new VelopackUpdateSource(), _logger);
         _appUpdateService.StateChanged += AppUpdateService_StateChanged;
+        _changeNotificationService = new ChangeNotificationService();
         var clipboard = new WpfClipboardService();
         _clipboardService = clipboard;
         var router = new WebMessageRouter(
@@ -151,7 +153,8 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
                 SetPublicHistoryAsync,
                 HideGroupSuggestionAsync,
                 SaveProfileAsync,
-                SkipProfileAsync),
+                SkipProfileAsync,
+                SetChangeNotifications: SetChangeNotificationsAsync),
             CompareWithAsync,
             CopyBatchAsync,
             CopyNoticeAsync,
@@ -169,6 +172,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _appUpdateService.Dispose();
         }
         _updateService?.Dispose();
+        _changeNotificationService?.Dispose();
         _store?.Dispose();
         _httpClient.Dispose();
     }
@@ -205,6 +209,16 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         await ApplyGroupRenamesAsync(cancellationToken).ConfigureAwait(false);
         if (result.Status == CalendarUpdateStatus.Updated && result.Batch is not null && _updatePresentationPolicy is not null)
         {
+            var windowActive = _window.IsActive && _window.WindowState != System.Windows.WindowState.Minimized;
+            var alreadyNotified = _notifiedBatchIds.Contains(result.Batch.Id);
+            if (ChangeNotificationPolicy.ShouldShow(result.Batch, _state, windowActive, alreadyNotified))
+            {
+                _notifiedBatchIds.Add(result.Batch.Id);
+                var batchId = result.Batch.Id;
+                _changeNotificationService?.Show(
+                    result.Batch.Changes.Total + result.Batch.Changes.GroupTotal,
+                    () => OpenChangeNotification(batchId));
+            }
             var presentation = _updatePresentationPolicy.Evaluate(result.Batch, _state);
             _notice = presentation.Notice;
             _toast = presentation.Toast ?? _toast;
@@ -240,6 +254,20 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private async Task OpenChangesAsync(string batchId)
     {
         await DismissNoticeAsync(batchId, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private void OpenChangeNotification(string batchId)
+    {
+        _ = _window.Dispatcher.InvokeAsync(() =>
+        {
+            if (_window.WindowState == System.Windows.WindowState.Minimized)
+            {
+                _window.WindowState = System.Windows.WindowState.Normal;
+            }
+            _window.Show();
+            _window.Activate();
+            _window.PostOpenChanges(batchId);
+        });
     }
 
     private async Task DismissNoticeAsync(string batchId, CancellationToken cancellationToken)
@@ -326,6 +354,14 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     {
         if (_stateStore is null) return;
         _state = _state.WithPublicHistory(enabled);
+        await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
+        await SendStateAsync().ConfigureAwait(false);
+    }
+
+    private async Task SetChangeNotificationsAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        if (_stateStore is null) return;
+        _state = _state.WithChangeNotifications(enabled);
         await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
         await SendStateAsync().ConfigureAwait(false);
     }
@@ -462,7 +498,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
 
         return await _window.Dispatcher.InvokeAsync(() =>
         {
-            var dialog = new SaveFileDialog
+            var dialog = new Microsoft.Win32.SaveFileDialog
             {
                 AddExtension = true,
                 DefaultExt = ".ics",

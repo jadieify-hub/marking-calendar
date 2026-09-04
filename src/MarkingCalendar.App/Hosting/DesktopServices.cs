@@ -18,7 +18,7 @@ public sealed class WpfClipboardService(
     Action<string>? setText = null,
     Action<TimeSpan>? delay = null) : IClipboardService
 {
-    private readonly Action<string> _setText = setText ?? Clipboard.SetText;
+    private readonly Action<string> _setText = setText ?? System.Windows.Clipboard.SetText;
     private readonly Action<TimeSpan> _delay = delay ?? Thread.Sleep;
 
     public void SetText(string value)

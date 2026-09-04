@@ -103,7 +103,8 @@ public sealed record ProductViewModel(
     string HistoryUrl,
     string SupportUrl,
     string Disclaimer,
-    bool PublicHistoryEnabled = true);
+    bool PublicHistoryEnabled = true,
+    bool ChangeNotificationsEnabled = true);
 public sealed record AppUpdateViewModel(
     string Kind,
     string Message,

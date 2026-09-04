@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>MarkingCalendar.App</RootNamespace>
     <AssemblyName>MarkingCalendar</AssemblyName>
     <ApplicationIcon>Resources\calendar.ico</ApplicationIcon>
@@ -21,6 +22,7 @@
     <EmbeddedResource Include="Resources\bundled-metadata.json" LogicalName="MarkingCalendar.Resources.bundled-metadata.json" />
     <EmbeddedResource Include="Resources\bundled-history.json" LogicalName="MarkingCalendar.Resources.bundled-history.json" />
     <EmbeddedResource Include="Resources\bundled-groups.json" LogicalName="MarkingCalendar.Resources.bundled-groups.json" />
+    <EmbeddedResource Include="Resources\calendar.ico" LogicalName="MarkingCalendar.Resources.calendar.ico" />
   </ItemGroup>
 
   <Target Name="BuildWebInterface" BeforeTargets="BeforeBuild" Condition="'$(SkipUiBuild)' != 'true'">

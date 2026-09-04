@@ -145,7 +145,8 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                 ProductInfo.PublicHistoryUrl,
                 ProductInfo.SupportUrl,
                 ProductInfo.Disclaimer,
-                state.PublicHistoryEnabled),
+                state.PublicHistoryEnabled,
+                state.ChangeNotificationsEnabled),
             suggestions,
             profile);
     }

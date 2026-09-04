@@ -38,7 +38,8 @@ public sealed record WebPreferenceHandlers(
     Func<bool, CancellationToken, Task>? SetPublicHistory = null,
     Func<string, CancellationToken, Task>? HideGroupSuggestion = null,
     Func<WebProfileSelection, CancellationToken, Task>? SaveProfile = null,
-    Func<CancellationToken, Task>? SkipProfile = null);
+    Func<CancellationToken, Task>? SkipProfile = null,
+    Func<bool, CancellationToken, Task>? SetChangeNotifications = null);
 
 public sealed class WebMessageRouter(
     IExternalLauncher launcher,
@@ -125,6 +126,9 @@ public sealed class WebMessageRouter(
                     case "setPublicHistory" when Boolean(root, "enabled") is { } enabled && _preferences?.SetPublicHistory is not null:
                         await _preferences.SetPublicHistory(enabled, cancellationToken).ConfigureAwait(false);
                         return WebCommandResult.Handled;
+                    case "setChangeNotifications" when Boolean(root, "enabled") is { } notificationsEnabled && _preferences?.SetChangeNotifications is not null:
+                        await _preferences.SetChangeNotifications(notificationsEnabled, cancellationToken).ConfigureAwait(false);
+                        return WebCommandResult.Handled;
                     case "hideGroupSuggestion" when Text(root, "key") is { } groupKey && _preferences?.HideGroupSuggestion is not null:
                         var normalizedGroupKey = GroupKey.Normalize(groupKey);
                         if (normalizedGroupKey.Length == 0) return WebCommandResult.Rejected;
@@ -191,7 +195,7 @@ public sealed class WebMessageRouter(
         "openLogs" => "Не удалось открыть журнал.",
         "refresh" => "Не удалось обновить данные.",
         "openChanges" or "dismissNotice" => "Не удалось открыть изменения.",
-        "setGroups" or "setTheme" or "setPublicHistory" or "saveProfile" or "skipProfile" => "Не удалось сохранить настройки.",
+        "setGroups" or "setTheme" or "setPublicHistory" or "setChangeNotifications" or "saveProfile" or "skipProfile" => "Не удалось сохранить настройки.",
         "compareWith" => "Не удалось сравнить снимки.",
         "copyBatch" or "copyNotice" or "copyComparison" => "Не удалось скопировать сводку.",
         "exportCalendar" => "Не удалось экспортировать календарь.",
