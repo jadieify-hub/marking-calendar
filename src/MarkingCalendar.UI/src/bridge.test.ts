@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectBridge } from "./bridge";
-import type { AppViewModel } from "./contracts";
+import type { AppViewModel, UiCommand } from "./contracts";
 
 const validModel: AppViewModel = {
   updatedAt: "02.09.2026, 10:00",
@@ -42,9 +42,13 @@ describe("connectBridge", () => {
     listener?.({ data: { type: "state", model: validModel } });
     listener?.({ data: { type: "state", model: { events: "not-an-array" } } });
     bridge.send({ type: "refresh" });
+    bridge.send({ type: "exportCalendar", eventIds: ["one", "two"] });
+    bridge.send({ type: "exportCalendar", eventIds: [""] } as UiCommand);
 
     expect(postMessage).toHaveBeenNthCalledWith(1, { type: "ready" });
     expect(postMessage).toHaveBeenNthCalledWith(2, { type: "refresh" });
+    expect(postMessage).toHaveBeenNthCalledWith(3, { type: "exportCalendar", eventIds: ["one", "two"] });
+    expect(postMessage).toHaveBeenCalledTimes(3);
     expect(receive).toHaveBeenCalledOnce();
     expect(receive).toHaveBeenCalledWith(validModel);
   });

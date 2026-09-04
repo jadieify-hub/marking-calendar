@@ -2,10 +2,13 @@ using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Globalization;
+using System.Text;
+using Microsoft.Win32;
 using MarkingCalendar.App.Web;
 using MarkingCalendar.App.Updates;
 using MarkingCalendar.Core.Changes;
 using MarkingCalendar.Core.Events;
+using MarkingCalendar.Core.Export;
 using MarkingCalendar.Core.Groups;
 using MarkingCalendar.Core.Snapshots;
 using MarkingCalendar.Infrastructure.Migration;
@@ -152,7 +155,8 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             CompareWithAsync,
             CopyBatchAsync,
             CopyNoticeAsync,
-            CopyComparisonAsync);
+            CopyComparisonAsync,
+            ExportCalendarAsync);
         await _window.InitializeBrowserAsync(router, ReportCommandFailureAsync, cancellationToken);
         _logger.Log(AppLogLevel.Info, "bootstrap", $"Приложение {ProductInfo.Version} готово к работе.");
     }
@@ -442,6 +446,34 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         _clipboardService.SetText(ChangeSummaryTextFormatter.Format(_comparison.Summary, _snapshot.RetrievedAt, selectedGroups));
         await ShowCopiedToastAsync().ConfigureAwait(false);
         return true;
+    }
+
+    private async Task<bool> ExportCalendarAsync(IReadOnlyList<string> eventIds, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_snapshot is null || eventIds.Count == 0) return false;
+        var byId = _snapshot.Events.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var events = new List<CalendarEvent>(eventIds.Count);
+        foreach (var id in eventIds)
+        {
+            if (!byId.TryGetValue(id, out var item)) return false;
+            events.Add(item);
+        }
+
+        return await _window.Dispatcher.InvokeAsync(() =>
+        {
+            var dialog = new SaveFileDialog
+            {
+                AddExtension = true,
+                DefaultExt = ".ics",
+                Filter = "Календарь iCalendar (*.ics)|*.ics",
+                FileName = $"marking-calendar-{DateOnly.FromDateTime(TimeProvider.System.GetLocalNow().DateTime):yyyy-MM-dd}.ics"
+            };
+            if (dialog.ShowDialog(_window) != true) return true;
+            var content = new IcsCalendarWriter(ProductInfo.Name, ProductInfo.Version, TimeProvider.System).Write(events);
+            File.WriteAllText(dialog.FileName, content, new UTF8Encoding(false));
+            return true;
+        }).Task.ConfigureAwait(false);
     }
 
     private async Task ShowCopiedToastAsync()

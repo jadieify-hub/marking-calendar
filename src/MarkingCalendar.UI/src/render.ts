@@ -167,6 +167,7 @@ class TimelineRenderer implements MountedApp {
   private supportPromptTimer: number | null = null;
   private supportLaunchRecorded = false;
   private dismissedUpdateVersion: string | null = null;
+  private visibleEventIds: ReadonlyArray<string> = [];
 
   public constructor(
     private readonly root: HTMLElement,
@@ -241,7 +242,7 @@ class TimelineRenderer implements MountedApp {
               <div class="group-list"></div>
             </section>
             <section class="sidebar-section" data-section="categories"><h2>Категории</h2><div class="category-list"></div></section>
-            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label></section>
+            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label><button type="button" class="secondary-button export-calendar" data-action="export-calendar" disabled>Экспорт в календарь · 0 событий</button></section>
           </aside>
           <main class="content">
             <section class="calendar-view" aria-label="Календарь">
@@ -387,6 +388,9 @@ class TimelineRenderer implements MountedApp {
       this.toggleCategory(button.dataset.category as CategoryId);
     });
     required(this.root.querySelector<HTMLButtonElement>('[data-action="reset-filters"]')).addEventListener("click", () => this.resetFilters());
+    required(this.root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]')).addEventListener("click", () => {
+      if (this.visibleEventIds.length > 0) this.send({ type: "exportCalendar", eventIds: this.visibleEventIds });
+    });
     required(this.root.querySelector<HTMLElement>(".load-more")).addEventListener("click", (event) => {
       if (!(event.target instanceof Element) || !event.target.closest('[data-action="load-more"]')) return;
       this.state.visibleDayLimit += 90;
@@ -704,6 +708,7 @@ class TimelineRenderer implements MountedApp {
     const totalCounts = visibleCounts(allMonths);
     const visibleMonths = takeDays(allMonths, this.state.visibleDayLimit);
     const shownCounts = visibleCounts(visibleMonths);
+    this.visibleEventIds = visibleMonths.flatMap((month) => month.days.flatMap((day) => day.cards.flatMap((card) => card.events.map((event) => event.id))));
     this.cards.clear();
     const feed = required(this.root.querySelector<HTMLElement>(".timeline-feed"));
     feed.replaceChildren();
@@ -715,6 +720,9 @@ class TimelineRenderer implements MountedApp {
     } else this.renderMonths(feed, visibleMonths, model.today);
     const statusText = `Показано ${shownCounts.events} из ${model.eventCount}`;
     required(this.root.querySelector<HTMLElement>(".feed-status")).textContent = statusText;
+    const exportButton = required(this.root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]'));
+    exportButton.textContent = `Экспорт в календарь · ${pluralEvents(this.visibleEventIds.length)}`;
+    exportButton.disabled = this.visibleEventIds.length === 0;
     required(this.root.querySelector<HTMLElement>(".status-copy small")).textContent = `${statusText} · ${model.updatedAt}`;
     const activeParts = [
       this.state.groupMode === "mine" ? selectedGroupsLabel(this.state.selectedGroups.size) : "все группы",

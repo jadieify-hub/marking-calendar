@@ -103,6 +103,23 @@ describe("renderApp", () => {
     ]);
   });
 
+  it("exports exactly the events visible after filters", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, model, send);
+    const query = root.querySelector<HTMLInputElement>('[data-filter="query"]');
+    if (query) {
+      query.value = "Игрушки";
+      query.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const exportButton = root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]');
+    expect(exportButton?.textContent).toBe("Экспорт в календарь · 1 событие");
+    exportButton?.click();
+
+    expect(send).toHaveBeenCalledWith({ type: "exportCalendar", eventIds: ["1"] });
+  });
+
   it("moves to the adjacent available year with the compact navigator", () => {
     const root = document.createElement("div");
     renderApp(root, model, vi.fn());

@@ -262,6 +262,48 @@ public sealed class WebMessageRouterTests
         Assert.Equal(WebCommandResult.Rejected, result);
     }
 
+    [Fact]
+    public async Task HandleAsync_ExportsValidatedEventIdsInTheirOriginalOrder()
+    {
+        IReadOnlyList<string>? requested = null;
+        var router = new WebMessageRouter(
+            new RecordingLauncher(),
+            new RecordingClipboard(),
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            (_, _) => Task.CompletedTask,
+            exportCalendar: (ids, _) =>
+            {
+                requested = ids;
+                return Task.FromResult(true);
+            });
+
+        var result = await router.HandleAsync(
+            "{\"type\":\"exportCalendar\",\"eventIds\":[\"event-2\",\"event-1\"]}",
+            CancellationToken.None);
+
+        Assert.Equal(WebCommandResult.Handled, result);
+        Assert.Equal(["event-2", "event-1"], requested);
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"exportCalendar\",\"eventIds\":\"event-1\"}")]
+    [InlineData("{\"type\":\"exportCalendar\",\"eventIds\":[\"\"]}")]
+    public async Task HandleAsync_RejectsInvalidExportCommands(string json)
+    {
+        var router = new WebMessageRouter(
+            new RecordingLauncher(),
+            new RecordingClipboard(),
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            (_, _) => Task.CompletedTask,
+            exportCalendar: (_, _) => Task.FromResult(true));
+
+        var result = await router.HandleAsync(json, CancellationToken.None);
+
+        Assert.Equal(WebCommandResult.Rejected, result);
+    }
+
     private static WebMessageRouter Router(IExternalLauncher launcher, IClipboardService clipboard) =>
         new(launcher, clipboard, _ => Task.CompletedTask, _ => Task.CompletedTask, (_, _) => Task.CompletedTask);
 

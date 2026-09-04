@@ -31,7 +31,11 @@ export function connectBridge(
     if (!isRecord(event.data) || event.data.type !== "state" || !isAppViewModel(event.data.model)) return;
     receive(event.data.model);
   });
-  const send: CommandSink = (command) => host.postMessage(command);
+  const send: CommandSink = (command) => {
+    if (command.type === "exportCalendar"
+      && (!Array.isArray(command.eventIds) || command.eventIds.some((id) => typeof id !== "string" || id.length === 0))) return;
+    host.postMessage(command);
+  };
   send({ type: "ready" });
   return { send };
 }

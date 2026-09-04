@@ -55,7 +55,8 @@ public sealed class WebMessageRouter(
     Func<string, CancellationToken, Task<bool>>? compareWith = null,
     Func<string, CancellationToken, Task<bool>>? copyBatch = null,
     Func<string, CancellationToken, Task<bool>>? copyNotice = null,
-    Func<CancellationToken, Task<bool>>? copyComparison = null)
+    Func<CancellationToken, Task<bool>>? copyComparison = null,
+    Func<IReadOnlyList<string>, CancellationToken, Task<bool>>? exportCalendar = null)
 {
     private readonly IExternalLauncher _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
     private readonly IClipboardService _clipboard = clipboard ?? throw new ArgumentNullException(nameof(clipboard));
@@ -72,6 +73,7 @@ public sealed class WebMessageRouter(
     private readonly Func<string, CancellationToken, Task<bool>>? _copyBatch = copyBatch;
     private readonly Func<string, CancellationToken, Task<bool>>? _copyNotice = copyNotice;
     private readonly Func<CancellationToken, Task<bool>>? _copyComparison = copyComparison;
+    private readonly Func<IReadOnlyList<string>, CancellationToken, Task<bool>>? _exportCalendar = exportCalendar;
 
     public async Task<WebCommandResult> HandleAsync(string json, CancellationToken cancellationToken)
     {
@@ -150,6 +152,10 @@ public sealed class WebMessageRouter(
                         return await _copyComparison(cancellationToken).ConfigureAwait(false)
                             ? WebCommandResult.Handled
                             : WebCommandResult.Rejected;
+                    case "exportCalendar" when EventIds(root) is { } eventIds && _exportCalendar is not null:
+                        return await _exportCalendar(eventIds, cancellationToken).ConfigureAwait(false)
+                            ? WebCommandResult.Handled
+                            : WebCommandResult.Rejected;
                     case "copySupportUrl":
                         _clipboard.SetText(ProductInfo.SupportUrl);
                         return WebCommandResult.Handled;
@@ -188,6 +194,7 @@ public sealed class WebMessageRouter(
         "setGroups" or "setTheme" or "setPublicHistory" or "saveProfile" or "skipProfile" => "Не удалось сохранить настройки.",
         "compareWith" => "Не удалось сравнить снимки.",
         "copyBatch" or "copyNotice" or "copyComparison" => "Не удалось скопировать сводку.",
+        "exportCalendar" => "Не удалось экспортировать календарь.",
         "restartForUpdate" => "Не удалось запустить обновление.",
         _ => "Команда не выполнена."
     };
@@ -221,6 +228,21 @@ public sealed class WebMessageRouter(
             if (!groups.Contains(value, StringComparer.Ordinal)) groups.Add(value);
         }
         return groups;
+    }
+
+    private static List<string>? EventIds(JsonElement element)
+    {
+        if (!element.TryGetProperty("eventIds", out var node) || node.ValueKind != JsonValueKind.Array || node.GetArrayLength() > 1000)
+        {
+            return null;
+        }
+        var ids = new List<string>();
+        foreach (var item in node.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String || item.GetString() is not { Length: > 0 and <= 200 } id) return null;
+            ids.Add(id);
+        }
+        return ids;
     }
 
     private static WebProfileSelection? Profile(JsonElement element)

@@ -156,6 +156,7 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .category-filter.is-active .legend-check { background: var(--accent); color: white; }
 .toggle { display: flex; min-height: 40px; align-items: center; gap: 8px; color: var(--text-soft); font-size: 13.5px; cursor: pointer; }
 .toggle input { accent-color: var(--accent); }
+.export-calendar { width: 100%; }
 .content { min-width: 0; margin: 0; }
 .upcoming { margin-bottom: 17px; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
 .upcoming-heading { display: flex; align-items: baseline; gap: 9px; margin-bottom: 12px; }
