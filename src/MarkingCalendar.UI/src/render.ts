@@ -251,7 +251,7 @@ class TimelineRenderer implements MountedApp {
               <div class="group-list"></div>
             </section>
             <section class="sidebar-section" data-section="categories"><h2>Категории</h2><div class="category-list"></div></section>
-            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label><button type="button" class="secondary-button export-calendar" data-action="export-calendar" disabled>Экспорт в календарь · 0 событий</button></section>
+            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label><button type="button" class="secondary-button export-calendar" data-action="export-calendar" disabled>Экспортировать · 0</button></section>
           </aside>
           <main class="content">
             <section class="calendar-view" aria-label="Календарь">
@@ -730,7 +730,7 @@ class TimelineRenderer implements MountedApp {
     const statusText = `Показано ${shownCounts.events} из ${model.eventCount}`;
     required(this.root.querySelector<HTMLElement>(".feed-status")).textContent = statusText;
     const exportButton = required(this.root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]'));
-    exportButton.textContent = `Экспорт в календарь · ${pluralEvents(this.visibleEventIds.length)}`;
+    exportButton.textContent = `Экспортировать · ${this.visibleEventIds.length}`;
     exportButton.disabled = this.visibleEventIds.length === 0;
     required(this.root.querySelector<HTMLElement>(".status-copy small")).textContent = `${statusText} · ${model.updatedAt}`;
     const activeParts = [

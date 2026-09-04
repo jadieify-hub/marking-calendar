@@ -126,7 +126,7 @@ describe("renderApp", () => {
     }
 
     const exportButton = root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]');
-    expect(exportButton?.textContent).toBe("Экспорт в календарь · 1 событие");
+    expect(exportButton?.textContent).toBe("Экспортировать · 1");
     exportButton?.click();
 
     expect(send).toHaveBeenCalledWith({ type: "exportCalendar", eventIds: ["1"] });
