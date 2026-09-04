@@ -20,7 +20,7 @@
       "markingcalendar.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MarkingCalendar.Core": "[0.1.7, )"
+          "MarkingCalendar.Core": "[0.1.8, )"
         }
       }
     },

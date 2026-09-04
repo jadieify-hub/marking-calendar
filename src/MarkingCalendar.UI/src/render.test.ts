@@ -167,7 +167,16 @@ describe("renderApp", () => {
     expect(root.querySelector<HTMLElement>(".upcoming")?.hidden).toBe(false);
     expect(root.querySelector(".upcoming-window")?.textContent).toContain("60 дней");
     expect(root.querySelectorAll(".upcoming-tile")).toHaveLength(4);
-    expect(root.querySelector(".upcoming-tile")?.textContent).toContain("и ещё 1");
+    const firstUpcoming = root.querySelector<HTMLElement>(".upcoming-tile");
+    expect(Array.from(firstUpcoming?.querySelectorAll(".upcoming-group-name") ?? [], (item) => item.textContent)).toEqual([
+      "БАД",
+      "Вода",
+      "Игрушки",
+    ]);
+    expect(firstUpcoming?.querySelectorAll(".product-group-icon")).toHaveLength(3);
+    expect(firstUpcoming?.querySelector(".upcoming-count")?.textContent).toBe("4 события");
+    expect(firstUpcoming?.textContent).not.toContain("4 группы");
+    expect(firstUpcoming?.textContent).toContain("ещё 1 группа");
     expect(root.querySelector(".upcoming-more")?.textContent).toContain("ещё 1 в ленте");
 
     const target = root.querySelector<HTMLElement>('[data-date="2026-10-17"]');

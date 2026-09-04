@@ -818,20 +818,42 @@ class TimelineRenderer implements MountedApp {
       button.type = "button";
       button.className = "upcoming-tile";
       button.dataset.upcomingDate = tile.date;
+      const dateRow = document.createElement("span");
+      dateRow.className = "upcoming-date-row";
       const date = document.createElement("span");
       date.className = "upcoming-date";
       date.textContent = formatDate(tile.date);
       const relative = document.createElement("span");
       relative.className = "upcoming-relative";
       relative.textContent = relativeDayLabel(model.today, tile.date);
-      const counts = document.createElement("strong");
-      counts.textContent = `${pluralNoun(tile.groupCount, "группа", "группы", "групп")} · ${pluralNoun(tile.eventCount, "событие", "события", "событий")}`;
-      const names = document.createElement("span");
-      names.className = "upcoming-groups";
-      names.textContent = tile.groups.join(" · ");
+      dateRow.append(date, relative);
+
+      const groups = document.createElement("span");
+      groups.className = "upcoming-groups";
+      for (const groupName of tile.groups) {
+        const group = document.createElement("span");
+        group.className = "upcoming-group";
+        const name = document.createElement("span");
+        name.className = "upcoming-group-name";
+        name.textContent = groupName;
+        group.append(createProductGroupIcon(groupName), name);
+        groups.append(group);
+      }
+
+      const meta = document.createElement("span");
+      meta.className = "upcoming-meta";
+      const count = document.createElement("span");
+      count.className = "upcoming-count";
+      count.textContent = pluralNoun(tile.eventCount, "событие", "события", "событий");
+      meta.append(count);
       const hiddenGroups = tile.groupCount - tile.groups.length;
-      if (hiddenGroups > 0) names.append(` · и ещё ${hiddenGroups}`);
-      button.append(date, relative, counts, names);
+      if (hiddenGroups > 0) {
+        const moreGroups = document.createElement("span");
+        moreGroups.className = "upcoming-hidden-groups";
+        moreGroups.textContent = `ещё ${pluralNoun(hiddenGroups, "группа", "группы", "групп")}`;
+        meta.append(moreGroups);
+      }
+      button.append(dateRow, groups, meta);
       tiles.append(button);
     }
     section.append(tiles);

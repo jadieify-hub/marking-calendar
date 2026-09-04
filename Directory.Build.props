@@ -8,7 +8,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    <Version>0.1.7</Version>
+    <Version>0.1.8</Version>
     <Authors>Руслан Керусов</Authors>
     <Company>KRS</Company>
     <Product>Календарь маркировки</Product>
