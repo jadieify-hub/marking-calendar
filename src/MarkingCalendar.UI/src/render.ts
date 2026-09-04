@@ -1367,6 +1367,8 @@ class TimelineRenderer implements MountedApp {
     events: ReadonlyArray<CalendarEventViewModel>,
     opener?: HTMLElement,
   ): void {
+    const hasGoodsPage = this.requireModel().groups
+      .find((group) => group.key === normalize(card.group))?.hasGoodsPage !== false;
     const dialog = document.createElement("section");
     dialog.className = "dialog event-dialog";
     dialog.setAttribute("role", "dialog");
@@ -1411,10 +1413,19 @@ class TimelineRenderer implements MountedApp {
       }
       if (event.history.length > 0) article.append(renderEventHistory(event, this.requireModel().updatedAt));
       if (event.url) {
+        const actions = document.createElement("div");
+        actions.className = "drawer-actions";
         const source = actionButton("Открыть источник", "primary");
         source.dataset.sourceEventId = event.id;
         source.addEventListener("click", () => this.send({ type: "openExternal", url: event.url ?? "" }));
-        article.append(source);
+        actions.append(source);
+        if (hasGoodsPage) {
+          const goods = actionButton("Товары, подлежащие маркировке");
+          goods.dataset.goodsEventId = event.id;
+          goods.addEventListener("click", () => this.send({ type: "openExternal", url: markedGoodsUrl(event.url ?? "") }));
+          actions.append(goods);
+        }
+        article.append(actions);
       }
       list.append(article);
     }
@@ -2094,6 +2105,12 @@ function actionButton(label: string, kind = "secondary"): HTMLButtonElement {
   button.className = `dialog-button ${kind}`;
   button.textContent = label;
   return button;
+}
+
+function markedGoodsUrl(source: string): string {
+  const url = new URL(source);
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/mark_goods/`;
+  return url.href;
 }
 
 function weekdayName(value: string): string {

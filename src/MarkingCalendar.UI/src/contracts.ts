@@ -18,6 +18,7 @@ export interface ProductGroupViewModel {
   readonly isNew?: boolean;
   readonly renamedFrom?: string | null;
   readonly isCompleted?: boolean;
+  readonly hasGoodsPage?: boolean;
 }
 
 export interface GroupSuggestionViewModel {

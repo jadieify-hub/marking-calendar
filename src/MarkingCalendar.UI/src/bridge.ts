@@ -129,7 +129,8 @@ function isGroup(value: unknown): boolean {
     && typeof value.key === "string"
     && typeof value.name === "string"
     && typeof value.eventCount === "number"
-    && (value.isCompleted === undefined || typeof value.isCompleted === "boolean");
+    && (value.isCompleted === undefined || typeof value.isCompleted === "boolean")
+    && (value.hasGoodsPage === undefined || typeof value.hasGoodsPage === "boolean");
 }
 
 function isGroupSuggestion(value: unknown): boolean {

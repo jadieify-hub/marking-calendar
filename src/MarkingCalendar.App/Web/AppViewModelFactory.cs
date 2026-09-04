@@ -77,7 +77,8 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                     Iso(firstEventDate),
                     firstSeen is not null && firstSeen >= newSince,
                     renamedRecently ? groupNovelty?.RenamedFrom : null,
-                    mappedGroup?.IsCompleted ?? false);
+                    mappedGroup?.IsCompleted ?? false,
+                    mappedGroup?.GoodsPath is not false);
             })
             .OrderBy(group => group.IsCompleted)
             .ThenBy(group => group.Name, StringComparer.Create(Russian, ignoreCase: true))

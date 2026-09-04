@@ -13,7 +13,8 @@ public sealed record ProductGroupViewModel(
     string? FirstEventDate = null,
     bool IsNew = false,
     string? RenamedFrom = null,
-    bool IsCompleted = false);
+    bool IsCompleted = false,
+    bool HasGoodsPage = true);
 public sealed record GroupSuggestionViewModel(
     string Key,
     string Name,

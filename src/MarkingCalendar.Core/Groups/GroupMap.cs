@@ -14,7 +14,8 @@ public sealed record GroupMapEntry(
     string Name,
     string Link,
     IReadOnlyList<string> Sectors,
-    string? Status = null)
+    string? Status = null,
+    bool? GoodsPath = null)
 {
     public bool IsCompleted => Status == GroupMapStatuses.Completed;
 }

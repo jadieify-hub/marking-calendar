@@ -325,7 +325,7 @@ describe("renderApp", () => {
       groups: [{ key: "бад", name: "БАД", eventCount: 2 }],
       events: [
         { ...model.events[0], id: "same-a", start: "2026-09-10", group: "БАД", url: "https://честныйзнак.рф/a" },
-        { ...model.events[1], id: "same-b", start: "2026-09-10", group: "БАД", description: "Полное описание", period: "с 10 сентября", url: "https://честныйзнак.рф/b" },
+        { ...model.events[1], id: "same-b", start: "2026-09-10", group: "БАД", description: "Полное описание", period: "с 10 сентября", url: "https://честныйзнак.рф/business/projects/grocery?from=calendar#details" },
       ],
     };
     mounted.update(groupedModel);
@@ -346,11 +346,45 @@ describe("renderApp", () => {
     expect(root.querySelector(".event-dialog a")).toBeNull();
 
     root.querySelector<HTMLButtonElement>('[data-source-event-id="same-b"]')?.click();
-    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/b" });
+    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/grocery?from=calendar#details" });
+
+    root.querySelector<HTMLButtonElement>('[data-goods-event-id="same-b"]')?.click();
+    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/grocery/mark_goods/?from=calendar#details" });
 
     mounted.update({ ...groupedModel, status: { kind: "checking", message: "Проверяем обновления…" } });
     expect(root.querySelectorAll(".drawer-event")).toHaveLength(2);
     expect(root.querySelector(".event-dialog")).not.toBeNull();
+  });
+
+  it("does not show external event actions when the source URL is absent", () => {
+    const root = document.createElement("div");
+    const event = { ...model.events[0], url: null };
+
+    renderApp(root, { ...model, events: [event] }, vi.fn());
+    root.querySelector<HTMLButtonElement>("[data-card-key]")?.click();
+
+    expect(root.querySelector("[data-source-event-id]")).toBeNull();
+    expect(root.querySelector("[data-goods-event-id]")).toBeNull();
+  });
+
+  it("hides the marked goods action for a group without that page", () => {
+    const root = document.createElement("div");
+    const event = {
+      ...model.events[0],
+      id: "no-goods-page",
+      group: "Средства гигиены",
+      url: "https://честныйзнак.рф/business/projects/chemistry/",
+    };
+
+    renderApp(root, {
+      ...model,
+      groups: [{ key: "средства гигиены", name: "Средства гигиены", eventCount: 1, hasGoodsPage: false }],
+      events: [event],
+    }, vi.fn());
+    root.querySelector<HTMLButtonElement>("[data-card-key]")?.click();
+
+    expect(root.querySelector("[data-source-event-id]")).not.toBeNull();
+    expect(root.querySelector("[data-goods-event-id]")).toBeNull();
   });
 
   it("shows recent-change badges without adding a separate calendar legend", () => {

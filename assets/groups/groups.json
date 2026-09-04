@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-04",
   "sectors": [
     {
       "id": "food",
@@ -343,6 +343,7 @@
     {
       "name": "Средства гигиены",
       "link": "/business/projects/chemistry/",
+      "goodsPath": false,
       "sectors": [
         "pharma",
         "beauty",

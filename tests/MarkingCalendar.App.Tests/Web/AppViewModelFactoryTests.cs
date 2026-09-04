@@ -154,7 +154,7 @@ public sealed class AppViewModelFactoryTests
             2,
             "2026-09-02",
             [new("home", "Для дома")],
-            [new(completed.Group, "/old/", ["home"], "completed"), new(active.Group, "/active/", ["home"])]);
+            [new(completed.Group, "/old/", ["home"], "completed"), new(active.Group, "/active/", ["home"], GoodsPath: false)]);
 
         var result = new AppViewModelFactory(new ChangeSummaryFactory(), new FixedTimeProvider()).Create(
             snapshot,
@@ -165,6 +165,8 @@ public sealed class AppViewModelFactoryTests
             groupMap: map);
 
         Assert.Equal(["Яркая группа", "Архивная группа"], result.Groups.Select(group => group.Name));
+        Assert.False(result.Groups[0].HasGoodsPage);
+        Assert.True(result.Groups[^1].HasGoodsPage);
         Assert.True(result.Groups[^1].IsCompleted);
         Assert.Equal("Яркая группа", Assert.Single(result.GroupSuggestions).Name);
     }

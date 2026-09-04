@@ -308,7 +308,8 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .drawer-stage { color: var(--text); font-weight: 600; }
 .drawer-description { color: var(--text-soft); }
 .drawer-period { color: var(--muted) !important; font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.drawer-event .dialog-button { width: fit-content; margin-top: 3px; }
+.drawer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; }
+.drawer-actions .dialog-button { width: fit-content; }
 .event-history { display: grid; gap: 7px; margin-top: 5px; padding-top: 11px; border-top: 1px solid var(--line-soft); }
 .event-history h4 { margin: 0; font-size: 13px; }
 .event-history-checked { color: var(--muted); font-size: 11.5px; }
