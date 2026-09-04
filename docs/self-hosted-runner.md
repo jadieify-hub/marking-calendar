@@ -53,7 +53,7 @@ runs-on: [self-hosted, linux, x64, marking-calendar]
 ```bash
 curl --silent --show-error --output /dev/null \
   --write-out '%{http_code}\n' \
-  --user-agent 'MarkingCalendar/0.1.9' \
+  --user-agent 'MarkingCalendar/0.1.10' \
   'https://честныйзнак.рф/bitrix/services/main/ajax.php?mode=class&c=dev%3AmarkingCalendar&action=getSheduleList'
 ```
 
