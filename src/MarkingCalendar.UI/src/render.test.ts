@@ -1268,8 +1268,42 @@ describe("renderApp", () => {
     root.querySelector<HTMLButtonElement>('[data-action="help"]')?.click();
     root.querySelector<HTMLButtonElement>('[data-action="about"]')?.click();
 
-    expect(root.querySelector(".app-update-status")?.textContent).toContain("Обновление готово к установке");
-    root.querySelector<HTMLButtonElement>('[data-action="restart-update"]')?.click();
+    const dialog = root.querySelector<HTMLElement>(".about-dialog");
+    expect(dialog?.querySelector(".app-update-status")?.textContent).toContain("Обновление готово к установке");
+    dialog?.querySelector<HTMLButtonElement>('[data-action="restart-update"]')?.click();
     expect(send).toHaveBeenCalledWith({ type: "restartForUpdate" });
+  });
+
+  it("announces a downloaded application update in the main window", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, {
+      ...model,
+      appUpdate: { kind: "ready", message: "Обновление готово к установке", progress: 100, version: "0.2.0", canRestart: true },
+    }, send);
+
+    const prompt = root.querySelector<HTMLElement>(".app-update-prompt");
+    expect(prompt?.hidden).toBe(false);
+    expect(prompt?.textContent).toContain("Обновление 0.2.0 загружено");
+    expect(prompt?.textContent).toContain("Перезапустите приложение, чтобы установить его");
+
+    prompt?.querySelector<HTMLButtonElement>('[data-action="restart-update"]')?.click();
+    expect(send).toHaveBeenCalledWith({ type: "restartForUpdate" });
+  });
+
+  it("keeps a postponed application update hidden for the current session", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    const ready = {
+      ...model,
+      appUpdate: { kind: "ready", message: "Обновление готово к установке", progress: 100, version: "0.2.0", canRestart: true } as const,
+    };
+    mounted.update(ready);
+
+    root.querySelector<HTMLButtonElement>('[data-action="update-later"]')?.click();
+    expect(root.querySelector<HTMLElement>(".app-update-prompt")?.hidden).toBe(true);
+
+    mounted.update(ready);
+    expect(root.querySelector<HTMLElement>(".app-update-prompt")?.hidden).toBe(true);
   });
 });

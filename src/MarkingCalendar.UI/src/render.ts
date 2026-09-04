@@ -166,6 +166,7 @@ class TimelineRenderer implements MountedApp {
   private supportPromptState: SupportPromptState | null = null;
   private supportPromptTimer: number | null = null;
   private supportLaunchRecorded = false;
+  private dismissedUpdateVersion: string | null = null;
 
   public constructor(
     private readonly root: HTMLElement,
@@ -200,6 +201,7 @@ class TimelineRenderer implements MountedApp {
       this.state.guideStep = 0;
     }
     this.renderOverlay();
+    this.renderAppUpdatePrompt();
     this.scheduleSupportPrompt();
     if (model.toast) showToast(
       required(this.root.querySelector<HTMLElement>(".toast")),
@@ -268,6 +270,7 @@ class TimelineRenderer implements MountedApp {
             </section>
           </main>
         </div>
+        <aside class="app-update-prompt" role="status" aria-live="polite" hidden></aside>
         <div class="toast" role="status" aria-live="polite" hidden></div>
       </div>
       <div class="modal-layer" hidden></div>`;
@@ -1487,6 +1490,43 @@ class TimelineRenderer implements MountedApp {
         || !this.canShowSupportPrompt(currentModel)) return;
       this.showSupportPrompt(currentModel);
     }, SUPPORT_PROMPT_DELAY_MS);
+  }
+
+  private renderAppUpdatePrompt(): void {
+    const model = this.requireModel();
+    const prompt = required(this.root.querySelector<HTMLElement>(".app-update-prompt"));
+    const version = model.appUpdate.version ?? "";
+    if (model.appUpdate.kind !== "ready"
+      || !model.appUpdate.canRestart
+      || this.dismissedUpdateVersion === version) {
+      prompt.hidden = true;
+      prompt.replaceChildren();
+      return;
+    }
+
+    const copy = document.createElement("div");
+    copy.className = "app-update-prompt-copy";
+    const title = document.createElement("strong");
+    title.textContent = version ? `Обновление ${version} загружено` : "Обновление загружено";
+    const detail = document.createElement("span");
+    detail.textContent = "Перезапустите приложение, чтобы установить его";
+    copy.append(title, detail);
+
+    const actions = document.createElement("div");
+    actions.className = "app-update-prompt-actions";
+    const restart = actionButton("Перезапустить сейчас", "primary");
+    restart.dataset.action = "restart-update";
+    restart.addEventListener("click", () => this.send({ type: "restartForUpdate" }));
+    const later = actionButton("Позже");
+    later.dataset.action = "update-later";
+    later.addEventListener("click", () => {
+      this.dismissedUpdateVersion = version;
+      prompt.hidden = true;
+      prompt.replaceChildren();
+    });
+    actions.append(restart, later);
+    prompt.replaceChildren(copy, actions);
+    prompt.hidden = false;
   }
 
   private canShowSupportPrompt(model: AppViewModel): boolean {

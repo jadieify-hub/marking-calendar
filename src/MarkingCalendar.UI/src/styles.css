@@ -349,6 +349,11 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .app-update-status small { color: var(--muted); }
 .app-update-status[data-kind="ready"] { border-color: color-mix(in srgb, #1e9a63 48%, var(--line)); }
 .app-update-status[data-kind="error"] { border-color: color-mix(in srgb, var(--danger) 48%, var(--line)); }
+.app-update-prompt { position: fixed; z-index: 39; right: 22px; bottom: 22px; display: flex; width: min(520px, calc(100vw - 44px)); align-items: center; justify-content: space-between; gap: 18px; padding: 14px 14px 14px 17px; border: 1px solid color-mix(in srgb, #1e9a63 48%, var(--line)); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow); animation: guide-enter 180ms ease-out; }
+.app-update-prompt-copy { display: grid; min-width: 0; gap: 2px; }
+.app-update-prompt-copy strong { font-size: 14px; }
+.app-update-prompt-copy span { color: var(--muted); font-size: 12.5px; }
+.app-update-prompt-actions { display: flex; flex: none; gap: 7px; }
 .toast { position: fixed; z-index: 40; right: 22px; bottom: 22px; display: flex; max-width: min(420px, calc(100vw - 44px)); align-items: center; gap: 12px; padding: 8px 10px 8px 15px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); box-shadow: var(--shadow); font-size: 14px; font-weight: 650; }
 .toast[data-kind="error"] { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
 .toast-action { min-height: 40px; padding: 0 9px; border: 0; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-weight: 700; cursor: pointer; }
@@ -410,6 +415,9 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
   .upcoming-heading { flex-wrap: wrap; }
   .upcoming-more { width: 100%; margin-left: 0; text-align: left; }
   .upcoming-tiles { grid-template-columns: minmax(0, 1fr); }
+  .app-update-prompt { align-items: stretch; flex-direction: column; }
+  .app-update-prompt-actions { width: 100%; }
+  .app-update-prompt-actions .dialog-button { flex: 1; }
   .feed-status { margin-left: 0; }
   .feed-day { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .day-mark { display: flex; gap: 7px; padding-top: 0; }
