@@ -136,7 +136,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             diffEngine,
             TimeProvider.System,
             _logger);
-        _appUpdateService = new AppUpdateService(new VelopackUpdateSource(), _logger);
+        _appUpdateService = new AppUpdateService(new VelopackUpdateSource(_logger), _logger);
         _appUpdateService.StateChanged += AppUpdateService_StateChanged;
         _changeNotificationService = new ChangeNotificationService();
         var clipboard = new WpfClipboardService();

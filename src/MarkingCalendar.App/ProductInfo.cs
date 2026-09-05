@@ -12,6 +12,7 @@ public static class ProductInfo
     public const string Developer = "Руслан Керусов";
     public const string Publisher = "KRS";
     public const string RepositoryUrl = "https://github.com/jadieify-hub/marking-calendar";
+    public const string UpdateFeedUrl = "https://raw.githubusercontent.com/jadieify-hub/marking-calendar/releases/";
     public const string PublicHistoryUrl = "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md";
     public const string SupportUrl = "https://pay.cloudtips.ru/p/a18da555";
     public const string PublicHistoryManifestUrl = "https://raw.githubusercontent.com/jadieify-hub/marking-calendar/data/manifest.json";
