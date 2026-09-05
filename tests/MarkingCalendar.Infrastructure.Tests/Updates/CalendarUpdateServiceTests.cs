@@ -43,12 +43,14 @@ public sealed class CalendarUpdateServiceTests
         Assert.Equal("local", history.Batches[0].Source);
     }
 
-    [Fact]
-    public async Task CheckAsync_RejectsAnomalousCandidateAndKeepsBaseline()
+    [Theory]
+    [InlineData(20)]
+    [InlineData(110)]
+    public async Task CheckAsync_RejectsAnomalousCandidateAndKeepsBaseline(int count)
     {
         var baseline = Snapshot(Enumerable.Range(1, 432).Select(Event).ToArray());
         using var fixture = await Fixture.CreateAsync(baseline);
-        var candidate = Snapshot(Enumerable.Range(1, 20).Select(Event).ToArray(), minute: 5);
+        var candidate = Snapshot(Enumerable.Range(1, count).Select(Event).ToArray(), minute: 5);
 
         var logger = new RecordingLogger();
         using var service = fixture.ServiceFor(candidate, logger);
@@ -57,6 +59,7 @@ public sealed class CalendarUpdateServiceTests
 
         Assert.Equal(CalendarUpdateStatus.Rejected, result.Status);
         Assert.Equal(baseline, current);
+        Assert.Empty((await fixture.Store.LoadHistoryAsync(CancellationToken.None)).Batches);
         Assert.Contains("аномально", result.UserMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(logger.Entries, entry => entry.Level == AppLogLevel.Warning && entry.Source == "calendar-update");
         Assert.Single(logger.RejectedPayloads);

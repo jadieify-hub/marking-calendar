@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Globalization;
 using System.Text;
+using System.Windows.Threading;
 using MarkingCalendar.App.Web;
 using MarkingCalendar.App.Updates;
 using MarkingCalendar.Core.Changes;
@@ -49,6 +50,10 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private ToastViewModel? _toast;
     private AppStatusViewModel? _fallbackStatus;
     private readonly HashSet<string> _notifiedBatchIds = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _refreshLifetime = new();
+    private DispatcherTimer? _refreshTimer;
+    private Task _refreshTask = Task.CompletedTask;
+    private volatile bool _disposed;
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -166,29 +171,95 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+        if (_refreshTimer is not null)
+        {
+            _refreshTimer.Stop();
+            _refreshTimer.Tick -= RefreshTimer_Tick;
+        }
+        _refreshLifetime.Cancel();
         if (_appUpdateService is not null)
         {
             _appUpdateService.StateChanged -= AppUpdateService_StateChanged;
             _appUpdateService.Dispose();
         }
-        _updateService?.Dispose();
         _changeNotificationService?.Dispose();
+        _ = DisposeRefreshResourcesAsync();
+    }
+
+    private async Task DisposeRefreshResourcesAsync()
+    {
+        // Do not dispose the stores' semaphores while a cancelled check is still releasing them.
+        await _refreshTask.ConfigureAwait(false);
+        _updateService?.Dispose();
         _store?.Dispose();
         _httpClient.Dispose();
+        _refreshLifetime.Dispose();
     }
 
     private async Task ReadyAsync(CancellationToken cancellationToken)
     {
-        _status = new AppStatusViewModel("checking", "Проверяем обновления…");
-        await SendStateAsync().ConfigureAwait(false);
-        _ = RefreshAsync(cancellationToken);
-        if (_appUpdateService is not null)
+        await UiDispatcher.InvokeAsync(_window.Dispatcher, () =>
+        {
+            if (_disposed) return Task.CompletedTask;
+            if (_refreshTimer is null)
+            {
+                _refreshTimer = new DispatcherTimer(DispatcherPriority.Background, _window.Dispatcher)
+                {
+                    Interval = TimeSpan.FromHours(3)
+                };
+                _refreshTimer.Tick += RefreshTimer_Tick;
+                _refreshTimer.Start();
+            }
+            return Task.CompletedTask;
+        }).ConfigureAwait(false);
+        if (!_disposed && _appUpdateService is not null)
         {
             _ = _appUpdateService.CheckAndDownloadAsync(cancellationToken);
         }
+        await RefreshAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RefreshAsync(CancellationToken cancellationToken)
+    private async void RefreshTimer_Tick(object? sender, EventArgs e) =>
+        await RefreshAsync(CancellationToken.None);
+
+    private Task RefreshAsync(CancellationToken cancellationToken) =>
+        UiDispatcher.InvokeAsync(_window.Dispatcher, () =>
+        {
+            // Startup, the timer and the manual command share the entire refresh, not just the HTTP request.
+            if (_disposed || !_refreshTask.IsCompleted) return Task.CompletedTask;
+            _refreshTask = RefreshSafelyAsync(cancellationToken);
+            return _refreshTask;
+        });
+
+    private async Task RefreshSafelyAsync(CancellationToken cancellationToken)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _refreshLifetime.Token);
+        try
+        {
+            await RefreshCoreAsync(linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested)
+        {
+            // Closing the application cancels its pending check without an error notification.
+        }
+        catch (Exception error)
+        {
+            _logger.Log(AppLogLevel.Error, "calendar-refresh", "Не удалось завершить проверку календаря.", error);
+            _status = new AppStatusViewModel("error", "Не удалось завершить проверку. Открыта сохранённая версия");
+            try
+            {
+                await SendStateAsync().ConfigureAwait(false);
+            }
+            catch (Exception presentationError)
+            {
+                _logger.Log(AppLogLevel.Error, "calendar-refresh", "Не удалось показать результат проверки.", presentationError);
+            }
+        }
+    }
+
+    private async Task RefreshCoreAsync(CancellationToken cancellationToken)
     {
         if (_updateService is null || _store is null) return;
         _status = new AppStatusViewModel("checking", "Проверяем обновления…");
@@ -196,29 +267,29 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         await SyncPublicHistoryAsync(cancellationToken).ConfigureAwait(false);
         var previousRetrievedAt = _snapshot?.RetrievedAt;
         var result = await _updateService.CheckAsync(cancellationToken).ConfigureAwait(false);
+        if (result.Snapshot is not null && result.Snapshot.Id != _snapshot?.Id) _comparison = null;
         _snapshot = result.Snapshot ?? _snapshot;
         LogGroupMapConflicts();
-        _comparison = null;
         var storedHistory = await _store.LoadHistoryAsync(cancellationToken).ConfigureAwait(false);
         _history = ChangeHistoryMerger.Merge(storedHistory, _publicHistory);
         await _store.SaveHistoryAsync(_history, cancellationToken).ConfigureAwait(false);
         _archives = await BuildArchiveListAsync(cancellationToken).ConfigureAwait(false);
-        _notice = null;
-        _noticeRelatedBatchIds = [];
         _toast = null;
         await ApplyGroupRenamesAsync(cancellationToken).ConfigureAwait(false);
         if (result.Status == CalendarUpdateStatus.Updated && result.Batch is not null && _updatePresentationPolicy is not null)
         {
-            var windowActive = _window.IsActive && _window.WindowState != System.Windows.WindowState.Minimized;
-            var alreadyNotified = _notifiedBatchIds.Contains(result.Batch.Id);
-            if (ChangeNotificationPolicy.ShouldShow(result.Batch, _state, windowActive, alreadyNotified))
+            await _window.Dispatcher.InvokeAsync(() =>
             {
-                _notifiedBatchIds.Add(result.Batch.Id);
-                var batchId = result.Batch.Id;
-                var changeCount = result.Batch.Changes.Total + result.Batch.Changes.GroupTotal;
-                await _window.Dispatcher.InvokeAsync(() =>
-                    _changeNotificationService?.Show(changeCount, () => OpenChangeNotification(batchId)));
-            }
+                var windowActive = _window.IsActive && _window.WindowState != System.Windows.WindowState.Minimized;
+                var alreadyNotified = _notifiedBatchIds.Contains(result.Batch.Id);
+                if (ChangeNotificationPolicy.ShouldShow(result.Batch, _state, windowActive, alreadyNotified))
+                {
+                    _notifiedBatchIds.Add(result.Batch.Id);
+                    var batchId = result.Batch.Id;
+                    var changeCount = result.Batch.Changes.Total + result.Batch.Changes.GroupTotal;
+                    _changeNotificationService?.Show(changeCount, () => OpenChangeNotification(batchId));
+                }
+            }, DispatcherPriority.Normal, cancellationToken).Task.ConfigureAwait(false);
             var presentation = _updatePresentationPolicy.Evaluate(result.Batch, _state);
             _notice = presentation.Notice;
             _toast = presentation.Toast ?? _toast;
@@ -280,7 +351,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
 
     private Task SendStateAsync()
     {
-        if (_snapshot is null || _viewModelFactory is null) return Task.CompletedTask;
+        if (_disposed || _snapshot is null || _viewModelFactory is null) return Task.CompletedTask;
         var model = _viewModelFactory.Create(
             _snapshot,
             _history,
@@ -293,7 +364,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _comparison,
             _noticeRelatedBatchIds,
             _groupMap);
-        return _window.Dispatcher.InvokeAsync(() => _window.PostStateAsync(model)).Task.Unwrap();
+        return _window.Dispatcher.InvokeAsync(() => _disposed ? Task.CompletedTask : _window.PostStateAsync(model)).Task.Unwrap();
     }
 
     private async Task ReportCommandFailureAsync(string message)

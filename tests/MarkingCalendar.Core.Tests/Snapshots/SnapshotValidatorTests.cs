@@ -36,11 +36,14 @@ public sealed class SnapshotValidatorTests
         Assert.Contains(result.Errors, error => error.Code == SnapshotValidationErrorCode.RequiredField);
     }
 
-    [Fact]
-    public void Validate_RejectsAnomalousDropFrom432To20Events()
+    [Theory]
+    [InlineData(20)]
+    [InlineData(110)]
+    [InlineData(215)]
+    public void Validate_RejectsDropBelowHalfOfBaseline(int count)
     {
         var baseline = Snapshot(Enumerable.Range(1, 432).Select(Event).ToArray());
-        var candidate = Snapshot(Enumerable.Range(1, 20).Select(Event).ToArray());
+        var candidate = Snapshot(Enumerable.Range(1, count).Select(Event).ToArray());
 
         var result = new SnapshotValidator().Validate(candidate, baseline);
 
@@ -48,11 +51,13 @@ public sealed class SnapshotValidatorTests
         Assert.Contains(result.Errors, error => error.Code == SnapshotValidationErrorCode.AnomalousCount);
     }
 
-    [Fact]
-    public void Validate_AcceptsNormalChangeFrom432To400Events()
+    [Theory]
+    [InlineData(216)]
+    [InlineData(400)]
+    public void Validate_AcceptsAtLeastHalfOfBaseline(int count)
     {
         var baseline = Snapshot(Enumerable.Range(1, 432).Select(Event).ToArray());
-        var candidate = Snapshot(Enumerable.Range(1, 400).Select(Event).ToArray());
+        var candidate = Snapshot(Enumerable.Range(1, count).Select(Event).ToArray());
 
         var result = new SnapshotValidator().Validate(candidate, baseline);
 

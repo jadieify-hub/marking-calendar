@@ -46,7 +46,6 @@ public sealed class SnapshotValidator(SnapshotValidationOptions? options = null)
 
         if (baseline is not null
             && baseline.Events.Count >= _options.MinimumExpectedEvents
-            && candidate.Events.Count < _options.MinimumExpectedEvents
             && candidate.Events.Count < baseline.Events.Count * _options.MinimumBaselineRatio)
         {
             errors.Add(new SnapshotValidationError(
