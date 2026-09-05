@@ -47,6 +47,7 @@ public sealed class AppUpdateService(
             var release = await _source.CheckAsync(cancellationToken).ConfigureAwait(false);
             if (release is null)
             {
+                _logger?.Log(AppLogLevel.Info, "app-update", "Проверка обновлений завершена: обновлений нет.");
                 Publish(new AppUpdateState(AppUpdateStage.NoUpdate, "Установлена последняя версия"));
                 return;
             }
@@ -61,6 +62,7 @@ public sealed class AppUpdateService(
                     release.Version)));
             await _source.DownloadAsync(release, progress, cancellationToken).ConfigureAwait(false);
             _downloadedRelease = release;
+            _logger?.Log(AppLogLevel.Info, "app-update", $"Проверка обновлений завершена: загружена версия {release.Version}.");
             Publish(new AppUpdateState(
                 AppUpdateStage.ReadyToRestart,
                 "Обновление готово к установке",

@@ -9,12 +9,16 @@ public sealed class AppUpdateServiceTests
     public async Task CheckAndDownloadAsync_ReportsNoUpdate()
     {
         var source = new FakeUpdateSource { Available = null };
-        var service = new AppUpdateService(source);
+        var logger = new RecordingLogger();
+        var service = new AppUpdateService(source, logger);
 
         await service.CheckAndDownloadAsync(CancellationToken.None);
 
         Assert.Equal(AppUpdateStage.NoUpdate, service.State.Stage);
         Assert.Equal("Установлена последняя версия", service.State.Message);
+        var logged = Assert.Single(logger.Entries);
+        Assert.Equal(AppLogLevel.Info, logged.Level);
+        Assert.Contains("обновлений нет", logged.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -25,7 +29,8 @@ public sealed class AppUpdateServiceTests
             Available = new AppUpdateRelease("0.2.0", new object()),
             ProgressValues = [20, 75, 100]
         };
-        var service = new AppUpdateService(source);
+        var logger = new RecordingLogger();
+        var service = new AppUpdateService(source, logger);
         var states = new List<AppUpdateState>();
         service.StateChanged += (_, state) => states.Add(state);
 
@@ -34,6 +39,9 @@ public sealed class AppUpdateServiceTests
         Assert.Contains(states, state => state.Stage == AppUpdateStage.Downloading && state.Progress == 75);
         Assert.Equal(AppUpdateStage.ReadyToRestart, service.State.Stage);
         Assert.Equal("0.2.0", service.State.Version);
+        var logged = Assert.Single(logger.Entries);
+        Assert.Equal(AppLogLevel.Info, logged.Level);
+        Assert.Contains("загружена версия 0.2.0", logged.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -125,10 +133,10 @@ public sealed class AppUpdateServiceTests
 
     private sealed class RecordingLogger : IAppLogger
     {
-        public List<(string Source, Exception? Exception)> Entries { get; } = [];
+        public List<(AppLogLevel Level, string Source, string Message, Exception? Exception)> Entries { get; } = [];
 
         public void Log(AppLogLevel level, string source, string message, Exception? exception = null) =>
-            Entries.Add((source, exception));
+            Entries.Add((level, source, message, exception));
 
         public Task SaveRejectedJsonAsync(string source, string json, CancellationToken cancellationToken) =>
             Task.CompletedTask;

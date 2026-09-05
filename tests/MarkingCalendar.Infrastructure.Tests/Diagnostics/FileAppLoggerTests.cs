@@ -7,6 +7,25 @@ namespace MarkingCalendar.Infrastructure.Tests.Diagnostics;
 public sealed class FileAppLoggerTests
 {
     [Fact]
+    public void Log_PreservesEntireInnerExceptionChainOnOneLine()
+    {
+        using var temp = new TemporaryDirectory();
+        var paths = new AppPaths(temp.Path);
+        var logger = new FileAppLogger(paths, new FixedTimeProvider());
+        var error = new HttpRequestException("TLS failed\r\nsee inner exception",
+            new System.Security.Authentication.AuthenticationException("Authentication\tfailed",
+                new IOException("unexpected\nEOF")));
+
+        logger.Log(AppLogLevel.Error, "app-update", "Проверка не удалась", error);
+
+        var logPath = Assert.Single(Directory.GetFiles(paths.LogDirectory, "app-*.log"));
+        var line = Assert.Single(File.ReadAllLines(logPath));
+        Assert.Contains("HttpRequestException: TLS failed see inner exception", line, StringComparison.Ordinal);
+        Assert.Contains("AuthenticationException: Authentication failed", line, StringComparison.Ordinal);
+        Assert.Contains("IOException: unexpected EOF", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Log_WritesOneSanitizedReadableLine()
     {
         using var temp = new TemporaryDirectory();

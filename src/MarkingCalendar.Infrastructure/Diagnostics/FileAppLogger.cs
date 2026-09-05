@@ -77,9 +77,11 @@ public sealed class FileAppLogger(AppPaths paths, TimeProvider timeProvider) : I
         Exception? exception)
     {
         var line = $"{timestamp:O} [{level.ToString().ToUpperInvariant()}] {SingleLine(source)}: {SingleLine(message)}";
-        return exception is null
-            ? line
-            : $"{line} | {exception.GetType().Name}: {SingleLine(exception.Message)}";
+        for (var error = exception; error is not null; error = error.InnerException)
+        {
+            line += $" | {error.GetType().Name}: {SingleLine(error.Message)}";
+        }
+        return line;
     }
 
     private static string SafeFilePart(string value)
