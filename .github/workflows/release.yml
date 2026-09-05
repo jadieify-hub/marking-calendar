@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-update-feed
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   release:
     runs-on: windows-latest
@@ -28,11 +33,14 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $version = '${{ github.ref_name }}'.TrimStart('v')
-          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $feedTest = $version -match '^(\d+\.\d+\.\d+)-feed-test\.\d+$'
+          if ($feedTest) { $version = $Matches[1] }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
             throw "Некорректный тег версии: $version"
           }
           "value=$version" >> $env:GITHUB_OUTPUT
+          "feed_test=$($feedTest.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Check release notes
         shell: pwsh
@@ -42,15 +50,50 @@ jobs:
             throw "Не найдены заметки выпуска: $notes"
           }
 
+      - name: Check for already published release
+        id: published
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v${{ steps.version.outputs.value }}'
+          $response = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
+          $exists = $LASTEXITCODE -eq 0
+          if ($exists) {
+            $release = ($response -join "`n") | ConvertFrom-Json
+            if ($release.draft -or $release.prerelease) { throw 'Нужен стабильный опубликованный выпуск.' }
+          } elseif (($response -join "`n") -notmatch 'HTTP 404') {
+            throw "Не удалось проверить существующий выпуск: $response"
+          }
+          if (-not $exists -and '${{ steps.version.outputs.feed_test }}' -eq 'true') {
+            throw 'Для проверки канала нужен уже опубликованный стабильный выпуск.'
+          }
+          "exists=$($exists.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          exit 0
+
       - name: Build release artifacts
+        if: steps.published.outputs.exists != 'true'
         shell: pwsh
         run: pwsh -NoProfile -File build/pack.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Reuse published stable artifacts
+        if: steps.published.outputs.exists == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v${{ steps.version.outputs.value }}'
+          gh release download $tag --dir artifacts `
+            --pattern 'MarkingCalendar-Setup.exe' --pattern 'MarkingCalendar-Portable.zip' `
+            --pattern 'SHA256SUMS.txt' --pattern 'releases.win.json' --pattern '*-full.nupkg'
+          if ($LASTEXITCODE -ne 0) { throw 'Не удалось загрузить артефакты стабильного выпуска.' }
 
       - name: Verify release artifacts
         shell: pwsh
         run: pwsh -NoProfile -File build/verify-package.ps1
 
       - name: Publish GitHub Release
+        if: steps.published.outputs.exists != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,3 +107,7 @@ jobs:
             $package `
             --title "Календарь маркировки ${{ steps.version.outputs.value }}" `
             --notes-file 'docs/releases/v${{ steps.version.outputs.value }}.md'
+
+      - name: Publish repository update feed
+        shell: pwsh
+        run: pwsh -NoProfile -File build/publish-update-feed.ps1

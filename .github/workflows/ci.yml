@@ -61,6 +61,10 @@ jobs:
       - name: Build application
         run: dotnet build MarkingCalendar.slnx -c Release --no-restore -p:SkipUiBuild=true
 
+      - name: Test update feed publication
+        shell: pwsh
+        run: pwsh -NoProfile -File build/test-publish-update-feed.ps1
+
       - name: Test application
         run: dotnet test MarkingCalendar.slnx -c Release --no-build --logger "trx;LogFilePrefix=tests" --results-directory TestResults
 
