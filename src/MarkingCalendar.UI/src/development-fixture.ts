@@ -56,7 +56,7 @@ export const developmentFixture: AppViewModel = {
     publisher: "KRS",
     repositoryUrl: "https://github.com/jadieify-hub/marking-calendar",
     historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md",
-    supportUrl: "https://pay.cloudtips.ru/p/a18da555",
+    supportUrl: "https://pay.cloudtips.ru/p/53698013",
     disclaimer: "Независимый проект, не являющийся официальным приложением оператора системы маркировки.",
     publicHistoryEnabled: true,
     changeNotificationsEnabled: true,

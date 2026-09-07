@@ -67,6 +67,45 @@ public sealed class AppStateStoreTests
     }
 
     [Fact]
+    public async Task SaveAsync_PreservesCallOrderWhenFirstWriteIsDelayed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "MarkingCalendar.Tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var paths = new AppPaths(root);
+            var writer = new DelayedFirstWriter();
+            var store = new AppStateStore(paths, writer);
+            var older = AppState.Initial.WithProfile(
+                ["retail"],
+                ["pharmacy"],
+                new Dictionary<string, bool> { ["Обувь"] = true },
+                ["Обувь"]);
+            var newer = AppState.Initial.WithProfile(
+                ["producer"],
+                ["food"],
+                new Dictionary<string, bool> { ["Игрушки"] = true },
+                ["Игрушки"]);
+
+            var first = store.SaveAsync(older, CancellationToken.None);
+            var second = store.SaveAsync(newer, CancellationToken.None);
+            if (writer.WriteCount == 1) writer.ReleaseFirst();
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+
+            var loaded = await store.LoadAsync(CancellationToken.None);
+
+            Assert.Equal(["producer"], loaded.Roles);
+            Assert.Equal(["food"], loaded.SelectedSectors);
+            Assert.Equal(["игрушки"], loaded.SelectedGroups);
+            Assert.Single(loaded.ManualGroups);
+            Assert.True(loaded.ManualGroups["игрушки"]);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void PreferenceUpdates_PreserveOtherStateAndNormalizeValues()
     {
         var initial = new AppState(2, ["batch-1"], ["Старая"], "auto");
@@ -98,5 +137,83 @@ public sealed class AppStateStoreTests
         {
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task LoadAsync_QuarantinesCorruptJsonAndAllowsNextSave()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "MarkingCalendar.Tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var paths = new AppPaths(root);
+            paths.EnsureCreated();
+            await File.WriteAllTextAsync(paths.StateFile, "{\"version\":");
+            var store = new AppStateStore(paths, new AtomicFileWriter());
+
+            var loaded = await store.LoadAsync(CancellationToken.None);
+
+            Assert.Equal(AppState.Initial, loaded);
+            Assert.False(File.Exists(paths.StateFile));
+            Assert.Single(Directory.GetFiles(root, "state.corrupt-*.json"));
+
+            await store.SaveAsync(AppState.Initial.WithTheme("dark"), CancellationToken.None);
+
+            Assert.Equal("dark", (await store.LoadAsync(CancellationToken.None)).Theme);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_DoesNotHideIoFailure()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "MarkingCalendar.Tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var paths = new AppPaths(root);
+            paths.EnsureCreated();
+            await using (var locked = new FileStream(
+                paths.StateFile,
+                FileMode.Create,
+                FileAccess.ReadWrite,
+                FileShare.None))
+            {
+                await Assert.ThrowsAsync<IOException>(
+                    () => new AppStateStore(paths, new AtomicFileWriter()).LoadAsync(CancellationToken.None));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private sealed class DelayedFirstWriter : IAtomicFileWriter
+    {
+        private readonly AtomicFileWriter _inner = new();
+        private readonly TaskCompletionSource<bool> _releaseFirst =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _writeCount;
+
+        public int WriteCount => Volatile.Read(ref _writeCount);
+
+        public void ReleaseFirst() => _releaseFirst.TrySetResult(true);
+
+        public async Task WriteJsonAsync<T>(string destination, T value, CancellationToken cancellationToken)
+        {
+            var writeNumber = Interlocked.Increment(ref _writeCount);
+            if (writeNumber == 1)
+            {
+                await _releaseFirst.Task.WaitAsync(cancellationToken);
+            }
+
+            await _inner.WriteJsonAsync(destination, value, cancellationToken);
+            if (writeNumber == 2) ReleaseFirst();
+        }
+
+        public Task WriteTextAsync(string destination, string value, CancellationToken cancellationToken) =>
+            _inner.WriteTextAsync(destination, value, cancellationToken);
     }
 }

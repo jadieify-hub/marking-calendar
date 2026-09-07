@@ -65,7 +65,7 @@ public sealed class AppViewModelFactoryTests
         Assert.Equal("https://github.com/jadieify-hub/marking-calendar", result.About.RepositoryUrl);
         Assert.True(result.About.ChangeNotificationsEnabled);
         Assert.Equal("https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", result.About.HistoryUrl);
-        Assert.Equal("https://pay.cloudtips.ru/p/a18da555", result.About.SupportUrl);
+        Assert.Equal("https://pay.cloudtips.ru/p/53698013", result.About.SupportUrl);
         Assert.Contains("Независимый проект", result.About.Disclaimer);
         Assert.True(result.About.PublicHistoryEnabled);
         Assert.Same(toast, result.Toast);
@@ -409,6 +409,7 @@ public sealed class AppViewModelFactoryTests
         Assert.Equal(1, result.UpdateNotice.MineCount);
         Assert.Equal(0, result.UpdateNotice.OthersCount);
         Assert.True(Assert.Single(result.UpdateNotice.Items).Mine);
+        Assert.Equal("игрушки", Assert.Single(result.UpdateNotice.Items).GroupKey);
         Assert.Equal(expectedRecent, item.RecentChange is not null);
     }
 

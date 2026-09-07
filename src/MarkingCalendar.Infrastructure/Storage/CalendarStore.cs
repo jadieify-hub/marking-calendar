@@ -111,8 +111,14 @@ public sealed class CalendarStore(
         }
     }
 
-    public async Task<SnapshotSaveResult> SaveValidatedAsync(
+    public Task<SnapshotSaveResult> SaveValidatedAsync(
         CalendarSnapshot candidate,
+        CancellationToken cancellationToken) =>
+        SaveUpdateAsync(candidate, batch: null, cancellationToken);
+
+    public async Task<SnapshotSaveResult> SaveUpdateAsync(
+        CalendarSnapshot candidate,
+        ChangeBatch? batch,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(candidate);
@@ -127,14 +133,52 @@ public sealed class CalendarStore(
                 return SnapshotSaveResult.Rejected(validation);
             }
 
-            if (baseline is not null && baseline.Id != candidate.Id)
+            // ponytail: rollback covers write failures, not process termination; use a journal if crash recovery is required.
+            ChangeHistory? previousHistory = null;
+            if (batch is not null)
             {
-                var stamp = baseline.RetrievedAt.UtcDateTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-                var archive = Path.Combine(_paths.ArchiveDirectory, $"{stamp}-{baseline.Id[..Math.Min(12, baseline.Id.Length)]}.json");
-                await _writer.WriteJsonAsync(archive, baseline, cancellationToken).ConfigureAwait(false);
+                previousHistory = await LoadHistoryAsync(cancellationToken).ConfigureAwait(false);
+                if (!previousHistory.Batches.Any(existing => existing.Id == batch.Id))
+                {
+                    var batches = previousHistory.Batches
+                        .Append(batch)
+                        .OrderByDescending(item => item.CheckedAt)
+                        .Take(_maxHistoryBatches)
+                        .ToArray();
+                    await _writer.WriteJsonAsync(
+                        _paths.ChangeHistoryFile,
+                        new ChangeHistory(batches),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    previousHistory = null;
+                }
             }
 
-            await _writer.WriteJsonAsync(_paths.CurrentSnapshot, candidate, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await WriteSnapshotAsync(candidate, baseline, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception saveError) when (previousHistory is not null)
+            {
+                try
+                {
+                    await _writer.WriteJsonAsync(
+                        _paths.ChangeHistoryFile,
+                        previousHistory,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception rollbackError)
+                {
+                    throw new IOException(
+                        "Не удалось сохранить снимок и восстановить прежнюю историю.",
+                        new AggregateException(saveError, rollbackError));
+                }
+
+                throw;
+            }
+
             _retentionPolicy.Enforce(_paths);
             return SnapshotSaveResult.Success;
         }
@@ -213,6 +257,21 @@ public sealed class CalendarStore(
         {
             _gate.Release();
         }
+    }
+
+    private async Task WriteSnapshotAsync(
+        CalendarSnapshot candidate,
+        CalendarSnapshot? baseline,
+        CancellationToken cancellationToken)
+    {
+        if (baseline is not null && baseline.Id != candidate.Id)
+        {
+            var stamp = baseline.RetrievedAt.UtcDateTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            var archive = Path.Combine(_paths.ArchiveDirectory, $"{stamp}-{baseline.Id[..Math.Min(12, baseline.Id.Length)]}.json");
+            await _writer.WriteJsonAsync(archive, baseline, cancellationToken).ConfigureAwait(false);
+        }
+
+        await _writer.WriteJsonAsync(_paths.CurrentSnapshot, candidate, cancellationToken).ConfigureAwait(false);
     }
 
     public void Dispose()

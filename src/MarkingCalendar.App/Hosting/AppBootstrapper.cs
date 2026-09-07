@@ -2,7 +2,6 @@ using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Globalization;
-using System.Text;
 using System.Windows.Threading;
 using MarkingCalendar.App.Web;
 using MarkingCalendar.App.Updates;
@@ -39,6 +38,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private IReadOnlyList<SnapshotArchiveInfo> _archives = [];
     private SnapshotComparison? _comparison;
     private WpfClipboardService? _clipboardService;
+    private bool _exportInProgress;
     private ChangeHistory _history = ChangeHistory.Empty;
     private ChangeHistory _publicHistory = ChangeHistory.Empty;
     private PublicHistoryClient? _publicHistoryClient;
@@ -159,7 +159,8 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
                 HideGroupSuggestionAsync,
                 SaveProfileAsync,
                 SkipProfileAsync,
-                SetChangeNotifications: SetChangeNotificationsAsync),
+                SetChangeNotifications: SetChangeNotificationsAsync,
+                SelectionChanged: revision => _selectionRevision = revision),
             CompareWithAsync,
             CopyBatchAsync,
             CopyNoticeAsync,
@@ -349,7 +350,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
     }
 
-    private Task SendStateAsync()
+    private Task SendStateAsync() => _window.Dispatcher.InvokeAsync(() =>
     {
         if (_disposed || _snapshot is null || _viewModelFactory is null) return Task.CompletedTask;
         var model = _viewModelFactory.Create(
@@ -363,9 +364,9 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _archives,
             _comparison,
             _noticeRelatedBatchIds,
-            _groupMap);
-        return _window.Dispatcher.InvokeAsync(() => _disposed ? Task.CompletedTask : _window.PostStateAsync(model)).Task.Unwrap();
-    }
+            _groupMap) with { SelectionRevision = _selectionRevision };
+        return _window.PostStateAsync(model);
+    }).Task.Unwrap();
 
     private async Task ReportCommandFailureAsync(string message)
     {
@@ -382,6 +383,8 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         await SendStateAsync().ConfigureAwait(false);
     }
 
+    private int _selectionRevision;
+
     private async Task SetGroupsAsync(IReadOnlyList<string> groups, CancellationToken cancellationToken)
     {
         if (_stateStore is null) return;
@@ -389,7 +392,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             ? _state.WithGroups(groups)
             : _state.WithGroupPreferences(
                 groups,
-                GroupSelectionCalculator.CaptureOverrides(_groupMap, _state.SelectedSectors, groups));
+                GroupSelectionCalculator.CaptureOverrides(_groupMap, _state.SelectedSectors, groups, _state.ManualGroups));
         await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
     }
 
@@ -398,7 +401,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         if (_stateStore is null || _groupMap is null) return;
         var knownSectors = _groupMap.Sectors.Select(sector => sector.Id).ToHashSet(StringComparer.Ordinal);
         var sectors = profile.Sectors.Where(knownSectors.Contains).ToArray();
-        var manual = GroupSelectionCalculator.CaptureOverrides(_groupMap, sectors, profile.Groups);
+        var manual = profile.ManualGroups ?? GroupSelectionCalculator.CaptureOverrides(_groupMap, sectors, profile.Groups, _state.ManualGroups);
         var selected = GroupSelectionCalculator.Calculate(_groupMap, sectors, manual);
         _state = _state.WithProfile(profile.Roles, sectors, manual, selected);
         await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
@@ -558,8 +561,9 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private async Task<bool> ExportCalendarAsync(IReadOnlyList<string> eventIds, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (_snapshot is null || eventIds.Count == 0) return false;
-        var byId = _snapshot.Events.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var snapshot = _snapshot;
+        if (snapshot is null || eventIds.Count == 0) return false;
+        var byId = snapshot.Events.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var events = new List<CalendarEvent>(eventIds.Count);
         foreach (var id in eventIds)
         {
@@ -567,20 +571,32 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             events.Add(item);
         }
 
-        return await _window.Dispatcher.InvokeAsync(() =>
+        return await _window.Dispatcher.InvokeAsync(async () =>
         {
-            var dialog = new Microsoft.Win32.SaveFileDialog
+            if (_exportInProgress) return false;
+            _exportInProgress = true;
+            try
             {
-                AddExtension = true,
-                DefaultExt = ".ics",
-                Filter = "Календарь iCalendar (*.ics)|*.ics",
-                FileName = $"marking-calendar-{DateOnly.FromDateTime(TimeProvider.System.GetLocalNow().DateTime):yyyy-MM-dd}.ics"
-            };
-            if (dialog.ShowDialog(_window) != true) return true;
-            var content = new IcsCalendarWriter(ProductInfo.Name, ProductInfo.Version, TimeProvider.System).Write(events);
-            File.WriteAllText(dialog.FileName, content, new UTF8Encoding(false));
-            return true;
-        }).Task.ConfigureAwait(false);
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    AddExtension = true,
+                    DefaultExt = ".ics",
+                    Filter = "Календарь iCalendar (*.ics)|*.ics",
+                    FileName = $"marking-calendar-{DateOnly.FromDateTime(TimeProvider.System.GetLocalNow().DateTime):yyyy-MM-dd}.ics"
+                };
+                if (dialog.ShowDialog(_window) != true) return true;
+                var writer = new AtomicFileWriter();
+                var identities = await new CalendarExportStore(AppPaths.ForCurrentUser(), writer)
+                    .ResolveAsync(snapshot.Events, cancellationToken);
+                var content = new IcsCalendarWriter(ProductInfo.Name, ProductInfo.Version, TimeProvider.System).Write(events, identities);
+                await writer.WriteTextAsync(dialog.FileName, content, cancellationToken);
+                return true;
+            }
+            finally
+            {
+                _exportInProgress = false;
+            }
+        }).Task.Unwrap().ConfigureAwait(false);
     }
 
     private async Task ShowCopiedToastAsync()

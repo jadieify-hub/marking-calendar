@@ -96,7 +96,6 @@ interface SupportPromptState {
 
 interface UiState {
   readonly activeCategories: Set<CategoryId>;
-  readonly knownCategories: Set<CategoryId>;
   readonly selectedGroups: Set<string>;
   readonly dismissedNoticeIds: Set<string>;
   readonly dismissedGroupSuggestions: Set<string>;
@@ -135,7 +134,6 @@ export function renderApp(root: HTMLElement, model: AppViewModel, send: CommandS
 class TimelineRenderer implements MountedApp {
   private readonly state: UiState = {
     activeCategories: new Set<CategoryId>(),
-    knownCategories: new Set<CategoryId>(),
     selectedGroups: new Set<string>(),
     dismissedNoticeIds: new Set<string>(),
     dismissedGroupSuggestions: new Set<string>(),
@@ -158,6 +156,7 @@ class TimelineRenderer implements MountedApp {
     dismissedComparisonBase: null,
   };
   private model: AppViewModel | null = null;
+  private selectionRevision = 0;
   private readonly cards = new Map<string, FeedCard>();
   private dialogController: DialogController | null = null;
   private profileDraft: ProfileDraft | null = null;
@@ -182,8 +181,12 @@ class TimelineRenderer implements MountedApp {
   public update(model: AppViewModel): void {
     const scrolling = this.root.ownerDocument.scrollingElement;
     const scrollTop = scrolling?.scrollTop ?? 0;
-    this.model = model;
-    this.initializeState(model);
+    const overlayBefore = this.overlayContent();
+    const selectionIsCurrent = (model.selectionRevision ?? 0) >= this.selectionRevision;
+    this.model = !selectionIsCurrent && this.model
+      ? { ...model, selectedGroups: Array.from(this.state.selectedGroups), profile: this.model.profile }
+      : model;
+    this.initializeState(model, selectionIsCurrent);
     this.applyTheme(model);
     this.renderHeader();
     this.renderGroups();
@@ -193,16 +196,17 @@ class TimelineRenderer implements MountedApp {
     this.renderComparison();
     this.renderHistory();
     this.renderViews();
-    if (!model.profile.onboardingCompleted && this.state.dialog === null) {
+    if (!this.requireModel().profile.onboardingCompleted && this.state.dialog === null) {
       this.state.dialog = { kind: "profile" };
       this.profileDraft = this.createProfileDraft();
-    } else if (model.profile.onboardingCompleted
+    } else if (this.requireModel().profile.onboardingCompleted
       && !this.guideCompleted
       && this.state.guideStep === null
       && this.state.dialog === null) {
       this.state.guideStep = 0;
     }
-    this.renderOverlay();
+    if (!this.dialogController || overlayBefore !== this.overlayContent()) this.renderOverlay();
+    this.updateAboutStatus();
     this.renderAppUpdatePrompt();
     this.scheduleSupportPrompt();
     if (model.toast) showToast(
@@ -554,17 +558,25 @@ class TimelineRenderer implements MountedApp {
     });
   }
 
-  private initializeState(model: AppViewModel): void {
-    for (const category of model.categories) {
-      this.state.knownCategories.add(category.id);
+  private initializeState(model: AppViewModel, selectionIsCurrent: boolean): void {
+    if (selectionIsCurrent) {
+      this.selectionRevision = model.selectionRevision ?? 0;
+      const changed = model.selectedGroups.length !== this.state.selectedGroups.size
+        || model.selectedGroups.some(group => !this.state.selectedGroups.has(group));
+      this.state.selectedGroups.clear();
+      for (const group of model.selectedGroups) this.state.selectedGroups.add(group);
+      this.state.hasSelectedGroups = model.hasSelectedGroups;
+      if (changed) {
+        this.state.groupMode = model.hasSelectedGroups ? "mine" : "all";
+        this.state.historyMode = model.hasSelectedGroups ? "mine" : "all";
+      }
     }
     if (this.state.initialized) return;
-    for (const group of model.selectedGroups) this.state.selectedGroups.add(group);
     this.state.groupMode = this.state.selectedGroups.size > 0 ? "mine" : "all";
     this.state.hasSelectedGroups = model.hasSelectedGroups;
     this.state.historyMode = model.hasSelectedGroups ? "mine" : "all";
     this.state.theme = model.theme;
-    for (const category of model.profile.roleCategories) this.state.activeCategories.add(category);
+    for (const category of model.profile.roleCategories.length > 0 ? model.profile.roleCategories : model.categories.map(item => item.id)) this.state.activeCategories.add(category);
     this.state.initialized = true;
   }
 
@@ -1105,6 +1117,8 @@ class TimelineRenderer implements MountedApp {
       this.requireModel().history.batches,
       this.state.historyMode,
       this.state.expandedHistoryBatchIds,
+      this.state.selectedGroups,
+      new Set(this.requireModel().groups.map(group => group.key)),
     );
   }
 
@@ -1181,12 +1195,8 @@ class TimelineRenderer implements MountedApp {
   }
 
   private toggleCategory(category: CategoryId): void {
-    if (this.state.activeCategories.size === 0) {
-      for (const known of this.state.knownCategories) this.state.activeCategories.add(known);
-    }
     if (this.state.activeCategories.has(category)) this.state.activeCategories.delete(category);
     else this.state.activeCategories.add(category);
-    if (this.state.activeCategories.size === this.state.knownCategories.size) this.state.activeCategories.clear();
     this.state.visibleDayLimit = 90;
     this.renderGroups();
     this.renderCategories();
@@ -1212,17 +1222,22 @@ class TimelineRenderer implements MountedApp {
 
   private sendSelectedGroups(): void {
     const groups = this.requireModel().groups.map((group) => group.key).filter((key) => this.state.selectedGroups.has(key));
-    this.send({ type: "setGroups", groups });
+    const model = this.requireModel();
+    const manualGroups = { ...model.profile.manualGroups };
+    const previous = new Set(model.selectedGroups);
+    for (const key of new Set([...previous, ...this.state.selectedGroups])) {
+      if (previous.has(key) !== this.state.selectedGroups.has(key)) manualGroups[key] = this.state.selectedGroups.has(key);
+    }
+    this.model = { ...model, selectedGroups: groups, profile: { ...model.profile, manualGroups } };
+    this.send({ type: "setGroups", groups, selectionRevision: ++this.selectionRevision });
   }
 
   private selectedCategories(): Set<CategoryId> {
-    return this.state.activeCategories.size === 0
-      ? new Set(this.state.knownCategories)
-      : new Set(this.state.activeCategories);
+    return new Set(this.state.activeCategories);
   }
 
   private isCategoryActive(category: CategoryId): boolean {
-    return this.state.activeCategories.size === 0 || this.state.activeCategories.has(category);
+    return this.state.activeCategories.has(category);
   }
 
   private openCard(card: FeedCard, opener?: HTMLElement): void {
@@ -1234,6 +1249,19 @@ class TimelineRenderer implements MountedApp {
       eventIds: card.events.map((event) => event.id),
     };
     this.renderOverlay(opener);
+  }
+
+  private overlayContent(): string {
+    const model = this.model;
+    if (!model) return "";
+    const dialog = this.state.dialog;
+    switch (dialog?.kind) {
+      case "profile": return JSON.stringify([dialog, model.profile, model.groups]);
+      case "events": return JSON.stringify([dialog, model.events.filter(event => dialog.eventIds.includes(event.id)), model.categories, model.groups]);
+      case "about": return JSON.stringify([dialog, model.about]);
+      case "support": return JSON.stringify([dialog, model.about.supportUrl]);
+      default: return JSON.stringify([model.updateNotice, this.state.guideStep]);
+    }
   }
 
   private renderOverlay(opener?: HTMLElement): void {
@@ -1690,22 +1718,9 @@ class TimelineRenderer implements MountedApp {
     }));
     const updateStatus = document.createElement("div");
     updateStatus.className = "app-update-status";
-    updateStatus.dataset.kind = model.appUpdate.kind;
-    const updateMessage = document.createElement("strong");
-    updateMessage.textContent = model.appUpdate.message;
-    const updateDetail = document.createElement("small");
-    updateDetail.textContent = model.appUpdate.version
-      ? `Версия ${model.appUpdate.version}${model.appUpdate.progress === null ? "" : ` · ${model.appUpdate.progress}%`}`
-      : "Обновление приложения";
-    updateStatus.append(updateMessage, updateDetail);
+    updateStatus.append(document.createElement("strong"), document.createElement("small"));
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
-    if (model.appUpdate.canRestart) {
-      const restart = actionButton("Перезапустить и обновить", "primary");
-      restart.dataset.action = "restart-update";
-      restart.addEventListener("click", () => this.send({ type: "restartForUpdate" }));
-      actions.append(restart);
-    }
     const repository = actionButton("GitHub", "primary");
     repository.dataset.action = "open-repository";
     repository.addEventListener("click", () => this.send({ type: "openExternal", url: model.about.repositoryUrl }));
@@ -1720,6 +1735,26 @@ class TimelineRenderer implements MountedApp {
     dialog.append(title, details, disclaimer, publicHistorySetting, notificationSetting, updateStatus, actions);
     const controller = this.openOverlay(dialog, opener ?? this.helpButton(), repository, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);
+    this.updateAboutStatus();
+  }
+
+  private updateAboutStatus(): void {
+    const dialog = this.root.querySelector<HTMLElement>(".about-dialog");
+    if (!dialog) return;
+    const update = this.requireModel().appUpdate;
+    const status = required(dialog.querySelector<HTMLElement>(".app-update-status"));
+    status.dataset.kind = update.kind;
+    required(status.querySelector("strong")).textContent = update.message;
+    required(status.querySelector("small")).textContent = update.version
+      ? `Версия ${update.version}${update.progress === null ? "" : ` · ${update.progress}%`}`
+      : "Обновление приложения";
+    const restart = dialog.querySelector<HTMLButtonElement>('[data-action="restart-update"]');
+    if (update.canRestart && !restart) {
+      const button = actionButton("Перезапустить и обновить", "primary");
+      button.dataset.action = "restart-update";
+      button.addEventListener("click", () => this.send({ type: "restartForUpdate" }));
+      required(dialog.querySelector(".dialog-actions")).prepend(button);
+    } else if (!update.canRestart) restart?.remove();
   }
 
   private createProfileDraft(): ProfileDraft {
@@ -1730,6 +1765,10 @@ class TimelineRenderer implements MountedApp {
       manualGroups: new Map(Object.entries(profile.manualGroups)),
       groups: new Set<string>(),
     };
+    const calculated = this.calculateProfileGroups(draft);
+    for (const key of this.state.selectedGroups) {
+      if (!calculated.has(key)) draft.manualGroups.set(key, true);
+    }
     draft.groups = this.calculateProfileGroups(draft);
     return draft;
   }
@@ -1807,11 +1846,7 @@ class TimelineRenderer implements MountedApp {
       checkbox.dataset.profileGroup = key;
       checkbox.checked = draft.groups.has(key);
       checkbox.addEventListener("change", () => {
-        const defaults = new Set(model.profile.sectors
-          .filter(sector => draft.sectors.has(sector.id))
-          .flatMap(sector => sector.groupKeys));
-        if (checkbox.checked === defaults.has(key)) draft.manualGroups.delete(key);
-        else draft.manualGroups.set(key, checkbox.checked);
+        draft.manualGroups.set(key, checkbox.checked);
         draft.groups = this.calculateProfileGroups(draft);
       });
       label.append(checkbox, document.createTextNode(group?.name ?? key));
@@ -1844,15 +1879,20 @@ class TimelineRenderer implements MountedApp {
       for (const key of draft.groups) this.state.selectedGroups.add(key);
       this.state.hasSelectedGroups = draft.groups.size > 0;
       this.state.groupMode = draft.groups.size > 0 ? "mine" : "all";
-      this.send({
-        type: "saveProfile",
-        roles: model.profile.roles.map(role => role.id).filter(id => draft.roles.has(id)),
-        sectors: model.profile.sectors.map(sector => sector.id).filter(id => draft.sectors.has(id)),
-        groups: Array.from(draft.groups),
-      });
+      this.state.historyMode = draft.groups.size > 0 ? "mine" : "all";
+      const roles = model.profile.roles.map(role => role.id).filter(id => draft.roles.has(id));
+      const sectors = model.profile.sectors.map(sector => sector.id).filter(id => draft.sectors.has(id));
+      const groups = Array.from(draft.groups);
+      const manualGroups = Object.fromEntries(draft.manualGroups);
+      this.model = { ...this.requireModel(), selectedGroups: groups, profile: {
+        ...this.requireModel().profile, selectedRoles: roles, selectedSectors: sectors, manualGroups,
+        roleCategories: Array.from(roleCategories), onboardingCompleted: true,
+      } };
+      this.send({ type: "saveProfile", roles, sectors, groups, manualGroups, selectionRevision: ++this.selectionRevision });
       this.state.dialog = null;
       this.profileDraft = null;
       controller.close();
+      this.renderHistory();
       this.renderGroups();
       this.renderCategories();
       this.renderCalendar();
@@ -2004,6 +2044,8 @@ function renderHistory(
   batches: ReadonlyArray<ChangeBatchViewModel>,
   mode: "mine" | "all",
   expandedBatchIds: ReadonlySet<string>,
+  selectedGroups: ReadonlySet<string>,
+  knownGroups: ReadonlySet<string>,
 ): void {
   container.replaceChildren();
   if (batches.length === 0) {
@@ -2023,13 +2065,15 @@ function renderHistory(
     total.textContent = pluralNoun(batch.counts.total, "изменение", "изменения", "изменений");
     article.append(heading, total, renderChangeCounts(batch.counts, "history"));
     const showAll = mode === "all" || expandedBatchIds.has(batch.id);
-    for (const item of showAll ? batch.items : batch.items.filter((entry) => entry.mine)) article.append(summaryRow(item));
-    if (mode === "mine" && batch.othersCount > 0 && !showAll) {
+    const mine = batch.items.filter(entry => entry.groupKey && knownGroups.has(entry.groupKey) ? selectedGroups.has(entry.groupKey) : entry.mine);
+    const othersCount = batch.items.length - mine.length;
+    for (const item of showAll ? batch.items : mine) article.append(summaryRow(item));
+    if (mode === "mine" && othersCount > 0 && !showAll) {
       const others = document.createElement("button");
       others.type = "button";
       others.className = "other-changes";
       others.dataset.otherBatch = batch.id;
-      others.textContent = `ещё ${batch.othersCount} по другим группам`;
+      others.textContent = `ещё ${othersCount} по другим группам`;
       article.append(others);
     }
     const copy = document.createElement("button");

@@ -108,6 +108,18 @@ public sealed class GroupMapTests
         Assert.True(overrides["лекарства"]);
     }
 
+    [Fact]
+    public void GroupSelection_PreservesExplicitOverridesMatchingSectorDefaults()
+    {
+        var map = new GroupMap(2, "2026-09-02", [new("food", "Продукты")],
+            [new("БАД", "/bad/", ["food"]), new("Обувь", "/shoes/", [])]);
+        var manual = new Dictionary<string, bool> { ["бад"] = true, ["обувь"] = false };
+        var saved = GroupSelectionCalculator.CaptureOverrides(map, ["food"], ["бад"], manual);
+        Assert.True(saved["бад"]);
+        Assert.False(saved["обувь"]);
+        Assert.Contains("бад", GroupSelectionCalculator.Calculate(map, [], saved));
+    }
+
     private static GroupMap Map(IReadOnlyList<GroupMapEntry> groups) => new(
         2,
         "2026-09-02",

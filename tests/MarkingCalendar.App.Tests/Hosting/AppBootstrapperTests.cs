@@ -5,6 +5,7 @@ using MarkingCalendar.App.Hosting;
 using MarkingCalendar.App.Web;
 using MarkingCalendar.Core.Changes;
 using MarkingCalendar.Core.Events;
+using MarkingCalendar.Core.Groups;
 using MarkingCalendar.Core.Snapshots;
 using MarkingCalendar.Infrastructure.Diagnostics;
 using MarkingCalendar.Infrastructure.Source;
@@ -15,6 +16,63 @@ namespace MarkingCalendar.App.Tests.Hosting;
 
 public sealed class AppBootstrapperTests
 {
+    [Fact]
+    public async Task SendStateAsync_BuildsSelectionAfterEarlierDispatcherChanges()
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        var summaryFactory = new RecordingSummaryFactory();
+        fixture.Set("_viewModelFactory", new AppViewModelFactory(summaryFactory, TimeProvider.System));
+        fixture.Set("_history", new ChangeHistory([new("batch", Snapshot().RetrievedAt,
+            new ChangeSet([Snapshot().Events[0]], [], [], []))]));
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var changeSelection = fixture.OnUiAsync(() =>
+        {
+            entered.SetResult();
+            Assert.True(release.Task.Wait(TimeSpan.FromSeconds(10)));
+            fixture.Set("_state", AppState.Initial.WithGroups(["бакалея"]));
+            fixture.Set("_selectionRevision", 1);
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var queued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = Task.Run(() =>
+        {
+            var pending = fixture.SendStateAsync();
+            queued.SetResult();
+            return pending;
+        });
+        try
+        {
+            await queued.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+        await Task.WhenAll(changeSelection, sending).WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(["бакалея"], summaryFactory.SelectedGroups);
+    }
+
+    [Fact]
+    public async Task SaveProfileAsync_RetainsExplicitGroupsAfterReloadAndSectorRemoval()
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        var store = fixture.StateStore;
+        fixture.Set("_stateStore", store);
+        fixture.Set("_groupMap", new GroupMap(2, "2026-09-02", [new("food", "Продукты")],
+            [new("БАД", "/bad/", ["food"])]));
+        var manual = new Dictionary<string, bool> { ["бад"] = true };
+        await fixture.InvokeAsync("SaveProfileAsync", new WebProfileSelection(["retail"], ["food"], ["бад"], manual));
+        var saved = await store.LoadAsync(CancellationToken.None);
+        Assert.True(saved.ManualGroups["бад"]);
+        fixture.Set("_state", saved);
+        await fixture.InvokeAsync("SaveProfileAsync", new WebProfileSelection(["retail"], [], ["бад"], saved.ManualGroups));
+        saved = await store.LoadAsync(CancellationToken.None);
+        Assert.Contains("бад", saved.SelectedGroups);
+        Assert.Empty(saved.SelectedSectors);
+    }
+
     [Fact]
     public async Task RefreshAsync_FromBackgroundThread_PresentsFoundChanges()
     {
@@ -110,6 +168,18 @@ public sealed class AppBootstrapperTests
             [new CalendarEvent(moved ? "moved" : "original", date, null, "с октября", "Бакалея", "Маркировка", "Старт", "Описание", null)]);
     }
 
+    private sealed class RecordingSummaryFactory : IChangeSummaryFactory
+    {
+        public IReadOnlyList<string> SelectedGroups { get; private set; } = [];
+
+        public ChangeSummaryResult Create(ChangeSet changes, int limit, DateOnly today,
+            IReadOnlySet<string> selectedGroups, IReadOnlySet<EventCategory>? priorityCategories = null)
+        {
+            SelectedGroups = selectedGroups.ToArray();
+            return new ChangeSummaryFactory().Create(changes, limit, today, selectedGroups, priorityCategories);
+        }
+    }
+
     private sealed class FixedSource : ICalendarSource
     {
         public Task<CalendarSnapshot> FetchAsync(CancellationToken cancellationToken) => Task.FromResult(Snapshot(moved: true));
@@ -177,6 +247,7 @@ public sealed class AppBootstrapperTests
         }
 
         public CalendarStore Store { get; }
+        public AppStateStore StateStore => new(new AppPaths(_root), new AtomicFileWriter());
         public RecordingLogger Logger { get; }
 
         public static async Task<Fixture> CreateAsync(ICalendarSource source, IAtomicFileWriter? writer = null)
@@ -220,8 +291,11 @@ public sealed class AppBootstrapperTests
 
         public Task RefreshAsync() => InvokeAsync("RefreshAsync");
 
-        public Task InvokeAsync(string method) => (Task)typeof(AppBootstrapper)
-            .GetMethod(method, PrivateInstance)!.Invoke(_bootstrapper, [CancellationToken.None])!;
+        public Task SendStateAsync() => (Task)typeof(AppBootstrapper)
+            .GetMethod("SendStateAsync", PrivateInstance)!.Invoke(_bootstrapper, null)!;
+
+        public Task InvokeAsync(string method, params object[] arguments) => (Task)typeof(AppBootstrapper)
+            .GetMethod(method, PrivateInstance)!.Invoke(_bootstrapper, [.. arguments, CancellationToken.None])!;
 
         public Task OnUiAsync(Action action) => _dispatcher.InvokeAsync(action).Task;
 

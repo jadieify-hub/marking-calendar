@@ -21,7 +21,7 @@ const validModel: AppViewModel = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/53698013", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
 };
 
 describe("connectBridge", () => {
@@ -42,6 +42,8 @@ describe("connectBridge", () => {
     const bridge = connectBridge(receive, undefined, openChanges);
     listener?.({ data: { type: "state", model: validModel } });
     listener?.({ data: { type: "state", model: { events: "not-an-array" } } });
+    listener?.({ data: { type: "state", model: { ...validModel, selectionRevision: -1 } } });
+    listener?.({ data: { type: "state", model: { ...validModel, selectionRevision: "1" } } });
     listener?.({ data: { type: "openChanges", batchId: "batch-1" } });
     listener?.({ data: { type: "openChanges", batchId: "" } });
     bridge.send({ type: "refresh" });

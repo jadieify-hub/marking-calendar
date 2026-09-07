@@ -30,7 +30,8 @@ public static class GroupSelectionCalculator
     public static IReadOnlyDictionary<string, bool> CaptureOverrides(
         GroupMap map,
         IEnumerable<string> selectedSectors,
-        IEnumerable<string> desiredGroups)
+        IEnumerable<string> desiredGroups,
+        IReadOnlyDictionary<string, bool>? existingOverrides = null)
     {
         ArgumentNullException.ThrowIfNull(desiredGroups);
         var defaults = Calculate(map, selectedSectors, new Dictionary<string, bool>()).ToHashSet(StringComparer.Ordinal);
@@ -38,8 +39,9 @@ public static class GroupSelectionCalculator
         return map.Groups
             .Select(group => GroupKey.Normalize(group.Name))
             .Concat(desired)
+            .Concat(existingOverrides?.Keys.Select(GroupKey.Normalize) ?? [])
             .Distinct(StringComparer.Ordinal)
-            .Where(key => defaults.Contains(key) != desired.Contains(key))
+            .Where(key => defaults.Contains(key) != desired.Contains(key) || existingOverrides?.ContainsKey(key) == true)
             .ToDictionary(key => key, desired.Contains, StringComparer.Ordinal);
     }
 }

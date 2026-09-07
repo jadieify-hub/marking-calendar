@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text.Json;
 using MarkingCalendar.Core.Events;
 
@@ -120,17 +122,36 @@ public sealed record AppState(
     }
 }
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The async-only semaphore never allocates a wait handle.")]
 public sealed class AppStateStore(AppPaths paths, IAtomicFileWriter writer)
 {
     private readonly AppPaths _paths = paths ?? throw new ArgumentNullException(nameof(paths));
     private readonly IAtomicFileWriter _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
 
     public async Task<AppState> LoadAsync(CancellationToken cancellationToken)
     {
         _paths.EnsureCreated();
-        if (!File.Exists(_paths.StateFile)) return AppState.Initial;
-        await using var stream = File.OpenRead(_paths.StateFile);
-        var persisted = await JsonSerializer.DeserializeAsync<PersistedAppState>(stream, JsonDefaults.Options, cancellationToken).ConfigureAwait(false);
+        PersistedAppState? persisted;
+        try
+        {
+            await using var stream = File.OpenRead(_paths.StateFile);
+            persisted = await JsonSerializer.DeserializeAsync<PersistedAppState>(
+                stream,
+                JsonDefaults.Options,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return AppState.Initial;
+        }
+        catch (JsonException)
+        {
+            Quarantine(_paths.StateFile);
+            return AppState.Initial;
+        }
+
         if (persisted is null) return AppState.Initial;
         var seen = persisted.SeenBatchIds ?? (string.IsNullOrWhiteSpace(persisted.LastShownBatchId) ? [] : [persisted.LastShownBatchId]);
         return AppState.Normalize(new AppState(
@@ -148,10 +169,31 @@ public sealed class AppStateStore(AppPaths paths, IAtomicFileWriter writer)
             persisted.ChangeNotificationsEnabled ?? true));
     }
 
-    public Task SaveAsync(AppState state, CancellationToken cancellationToken)
+    public async Task SaveAsync(AppState state, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(state);
-        return _writer.WriteJsonAsync(_paths.StateFile, AppState.Normalize(state), cancellationToken);
+        await _saveGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _writer.WriteJsonAsync(
+                _paths.StateFile,
+                AppState.Normalize(state),
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _saveGate.Release();
+        }
+    }
+
+    private static void Quarantine(string path)
+    {
+        var directory = Path.GetDirectoryName(path)
+            ?? throw new InvalidOperationException("Не удалось определить каталог файла настроек.");
+        var stem = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture);
+        File.Move(path, Path.Combine(directory, $"{stem}.corrupt-{stamp}-{Guid.NewGuid():N}{extension}"));
     }
 
     private sealed record PersistedAppState(

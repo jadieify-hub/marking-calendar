@@ -98,6 +98,30 @@ public sealed class CalendarUpdateServiceTests
         Assert.Single(history.Batches);
     }
 
+    [Theory]
+    [InlineData("changes.json")]
+    [InlineData("current.json")]
+    public async Task CheckAsync_WriteFailureKeepsBaselineAndRetrySavesOneBatch(
+        string failingFile)
+    {
+        var baseline = Snapshot([Event(1)]);
+        var writer = new FailOnceWriter(failingFile);
+        using var fixture = await Fixture.CreateAsync(baseline, writer);
+        var candidate = Snapshot([Event(1) with { Description = "Новая редакция", Id = "changed-1" }], minute: 5);
+        using var service = fixture.ServiceFor(candidate);
+
+        var failed = await service.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(CalendarUpdateStatus.Failed, failed.Status);
+        Assert.Equal(baseline, await fixture.Store.LoadCurrentAsync(CancellationToken.None));
+        Assert.Empty((await fixture.Store.LoadHistoryAsync(CancellationToken.None)).Batches);
+
+        var retried = await service.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(CalendarUpdateStatus.Updated, retried.Status);
+        Assert.Equal(candidate, await fixture.Store.LoadCurrentAsync(CancellationToken.None));
+        Assert.Single((await fixture.Store.LoadHistoryAsync(CancellationToken.None)).Batches);
+    }
     private static CalendarSnapshot Snapshot(IReadOnlyList<CalendarEvent> events, int minute = 0) =>
         CalendarSnapshot.Create(new DateTimeOffset(2026, 9, 2, 10, minute, 0, TimeSpan.FromHours(3)), new Uri("https://example.test/source"), events);
 
@@ -120,11 +144,16 @@ public sealed class CalendarUpdateServiceTests
         public CalendarSnapshot Baseline { get; }
         public CalendarStore Store { get; }
 
-        public static async Task<Fixture> CreateAsync(CalendarSnapshot baseline)
+        public static async Task<Fixture> CreateAsync(CalendarSnapshot baseline, IAtomicFileWriter? writer = null)
         {
             var root = Path.Combine(Path.GetTempPath(), "MarkingCalendar.Tests", Guid.NewGuid().ToString("N"));
-            var store = new CalendarStore(new AppPaths(root), new SnapshotValidator(), new AtomicFileWriter());
-            await store.SaveValidatedAsync(baseline, CancellationToken.None);
+            var paths = new AppPaths(root);
+            using (var seedStore = new CalendarStore(paths, new SnapshotValidator(), new AtomicFileWriter()))
+            {
+                await seedStore.SaveValidatedAsync(baseline, CancellationToken.None);
+            }
+
+            var store = new CalendarStore(paths, new SnapshotValidator(), writer ?? new AtomicFileWriter());
             return new Fixture(root, baseline, store);
         }
 
@@ -152,6 +181,27 @@ public sealed class CalendarUpdateServiceTests
     private sealed class FixedTimeProvider : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(2026, 9, 2, 7, 5, 0, TimeSpan.Zero);
+    }
+
+    private sealed class FailOnceWriter(string failingFile) : IAtomicFileWriter
+    {
+        private readonly AtomicFileWriter _inner = new();
+        private bool _failed;
+
+        public async Task WriteJsonAsync<T>(string destination, T value, CancellationToken cancellationToken)
+        {
+            var fileName = Path.GetFileName(destination);
+            if (!_failed && fileName.Equals(failingFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _failed = true;
+                throw new IOException($"Failed to write {fileName}.");
+            }
+
+            await _inner.WriteJsonAsync(destination, value, cancellationToken);
+        }
+
+        public Task WriteTextAsync(string destination, string value, CancellationToken cancellationToken) =>
+            _inner.WriteTextAsync(destination, value, cancellationToken);
     }
 
     private sealed class RecordingLogger : IAppLogger

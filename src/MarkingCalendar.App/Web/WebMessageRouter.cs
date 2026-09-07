@@ -30,7 +30,8 @@ public sealed record WebCommandResult(WebCommandKind Kind, string? Message = nul
 public sealed record WebProfileSelection(
     IReadOnlyList<string> Roles,
     IReadOnlyList<string> Sectors,
-    IReadOnlyList<string> Groups);
+    IReadOnlyList<string> Groups,
+    IReadOnlyDictionary<string, bool>? ManualGroups = null);
 
 public sealed record WebPreferenceHandlers(
     Func<IReadOnlyList<string>, CancellationToken, Task> SetGroups,
@@ -39,7 +40,8 @@ public sealed record WebPreferenceHandlers(
     Func<string, CancellationToken, Task>? HideGroupSuggestion = null,
     Func<WebProfileSelection, CancellationToken, Task>? SaveProfile = null,
     Func<CancellationToken, Task>? SkipProfile = null,
-    Func<bool, CancellationToken, Task>? SetChangeNotifications = null);
+    Func<bool, CancellationToken, Task>? SetChangeNotifications = null,
+    Action<int>? SelectionChanged = null);
 
 public sealed class WebMessageRouter(
     IExternalLauncher launcher,
@@ -117,7 +119,8 @@ public sealed class WebMessageRouter(
                     case "markHistorySeen":
                         await _markHistorySeen(cancellationToken).ConfigureAwait(false);
                         return WebCommandResult.Handled;
-                    case "setGroups" when Groups(root) is { } groups && _preferences is not null:
+                    case "setGroups" when Groups(root) is { } groups && SelectionRevision(root) is { } groupRevision && _preferences is not null:
+                        _preferences.SelectionChanged?.Invoke(groupRevision);
                         await _preferences.SetGroups(groups, cancellationToken).ConfigureAwait(false);
                         return WebCommandResult.Handled;
                     case "setTheme" when Theme(root) is { } theme && _preferences is not null:
@@ -134,7 +137,8 @@ public sealed class WebMessageRouter(
                         if (normalizedGroupKey.Length == 0) return WebCommandResult.Rejected;
                         await _preferences.HideGroupSuggestion(normalizedGroupKey, cancellationToken).ConfigureAwait(false);
                         return WebCommandResult.Handled;
-                    case "saveProfile" when Profile(root) is { } profile && _preferences?.SaveProfile is not null:
+                    case "saveProfile" when Profile(root) is { } profile && SelectionRevision(root) is { } profileRevision && _preferences?.SaveProfile is not null:
+                        _preferences.SelectionChanged?.Invoke(profileRevision);
                         await _preferences.SaveProfile(profile, cancellationToken).ConfigureAwait(false);
                         return WebCommandResult.Handled;
                     case "skipProfile" when _preferences?.SkipProfile is not null:
@@ -259,8 +263,25 @@ public sealed class WebMessageRouter(
         {
             return null;
         }
-        return new WebProfileSelection(roles, sectors, groups);
+        Dictionary<string, bool>? manual = null;
+        if (element.TryGetProperty("manualGroups", out var node))
+        {
+            if (node.ValueKind != JsonValueKind.Object) return null;
+            manual = new(StringComparer.Ordinal);
+            foreach (var item in node.EnumerateObject())
+            {
+                var key = GroupKey.Normalize(item.Name);
+                if (key.Length is 0 or > 200 || manual.Count >= 500
+                    || item.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return null;
+                manual[key] = item.Value.GetBoolean();
+            }
+        }
+        return new WebProfileSelection(roles, sectors, groups, manual);
     }
+
+    private static int? SelectionRevision(JsonElement element) =>
+        !element.TryGetProperty("selectionRevision", out var node) ? 0
+        : node.ValueKind == JsonValueKind.Number && node.TryGetInt32(out var revision) && revision >= 0 ? revision : null;
 
     private static List<string>? Values(JsonElement element, string property, int limit)
     {

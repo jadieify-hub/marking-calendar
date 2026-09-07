@@ -211,12 +211,48 @@ public sealed class HistoryRunnerTests
         Assert.StartsWith("WRITE_ERROR:", result.Output, StringComparison.Ordinal);
     }
 
-    private static HistoryRunner CreateRunner(CalendarSnapshot bundled, CalendarSnapshot candidate, TimeProvider? timeProvider = null) => new(
+    [Theory]
+    [InlineData("changes.json")]
+    [InlineData("current.json")]
+    public async Task CheckAsync_UpdateWriteFailureKeepsBaselineAndRetrySavesOneBatch(
+        string failingFile)
+    {
+        using var temp = new TemporaryDirectory();
+        var baseline = Snapshot(Enumerable.Range(1, 120).Select(Event).ToArray());
+        var candidate = Snapshot(baseline.Events.Select((item, index) => index == 0
+            ? item with { Description = "Новая редакция", Id = "changed-event" }
+            : item).ToArray(), minute: 5);
+        await CreateRunner(baseline, baseline).CheckAsync(new HistoryCheckOptions(temp.Path), CancellationToken.None);
+        var writer = new FailOnceWriter(failingFile);
+        var runner = CreateRunner(baseline, candidate, writer: writer);
+
+        var failed = await runner.CheckAsync(new HistoryCheckOptions(temp.Path), CancellationToken.None);
+        var paths = new AppPaths(temp.Path, AppStorageLayout.Flat);
+        using (var failedStore = new CalendarStore(paths, new SnapshotValidator(), new AtomicFileWriter(), maxHistoryBatches: 500))
+        {
+            Assert.Equal(HistoryRunnerExitCode.WriteError, failed.ExitCode);
+            Assert.Equal(baseline.Id, (await failedStore.LoadCurrentAsync(CancellationToken.None))?.Id);
+            Assert.Empty((await failedStore.LoadHistoryAsync(CancellationToken.None)).Batches);
+        }
+
+        var retried = await runner.CheckAsync(new HistoryCheckOptions(temp.Path), CancellationToken.None);
+        using var store = new CalendarStore(paths, new SnapshotValidator(), new AtomicFileWriter(), maxHistoryBatches: 500);
+
+        Assert.Equal(HistoryRunnerExitCode.Success, retried.ExitCode);
+        Assert.Equal(candidate.Id, (await store.LoadCurrentAsync(CancellationToken.None))?.Id);
+        Assert.Single((await store.LoadHistoryAsync(CancellationToken.None)).Batches);
+    }
+
+    private static HistoryRunner CreateRunner(
+        CalendarSnapshot bundled,
+        CalendarSnapshot candidate,
+        TimeProvider? timeProvider = null,
+        IAtomicFileWriter? writer = null) => new(
         new FixedSource(candidate),
         bundled,
         new SnapshotValidator(),
         new EventDiffEngine(),
-        new AtomicFileWriter(),
+        writer ?? new AtomicFileWriter(),
         timeProvider ?? new FixedTimeProvider());
 
     private static async Task<PublicHistoryManifest> ReadManifestAsync(string root)
@@ -283,6 +319,27 @@ public sealed class HistoryRunnerTests
     private sealed class FixedTimeProvider(int hour = 7) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(2026, 9, 2, hour, 10, 0, TimeSpan.Zero);
+    }
+
+    private sealed class FailOnceWriter(string failingFile) : IAtomicFileWriter
+    {
+        private readonly AtomicFileWriter _inner = new();
+        private bool _failed;
+
+        public async Task WriteJsonAsync<T>(string destination, T value, CancellationToken cancellationToken)
+        {
+            var fileName = Path.GetFileName(destination);
+            if (!_failed && fileName.Equals(failingFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _failed = true;
+                throw new IOException($"Failed to write {fileName}.");
+            }
+
+            await _inner.WriteJsonAsync(destination, value, cancellationToken);
+        }
+
+        public Task WriteTextAsync(string destination, string value, CancellationToken cancellationToken) =>
+            _inner.WriteTextAsync(destination, value, cancellationToken);
     }
 
     private sealed class TemporaryDirectory : IDisposable

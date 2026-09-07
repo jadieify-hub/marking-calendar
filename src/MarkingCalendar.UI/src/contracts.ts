@@ -84,6 +84,7 @@ export interface ChangeSummaryViewModel {
   readonly stage: string;
   readonly changedFields: ReadonlyArray<ChangedFieldViewModel>;
   readonly mine: boolean;
+  readonly groupKey?: string;
 }
 
 export interface ChangeCountsViewModel {
@@ -149,6 +150,7 @@ export interface AppViewModel {
   readonly eventCount: number;
   readonly today: string;
   readonly groups: ReadonlyArray<ProductGroupViewModel>;
+  readonly selectionRevision?: number;
   readonly selectedGroups: ReadonlyArray<string>;
   readonly hasSelectedGroups: boolean;
   readonly theme: ThemePreference;
@@ -177,12 +179,12 @@ export type UiCommand =
   | { readonly type: "openChanges"; readonly batchId: string }
   | { readonly type: "dismissNotice"; readonly batchId: string }
   | { readonly type: "markHistorySeen" }
-  | { readonly type: "setGroups"; readonly groups: ReadonlyArray<string> }
+  | { readonly type: "setGroups"; readonly groups: ReadonlyArray<string>; readonly selectionRevision?: number }
   | { readonly type: "setTheme"; readonly theme: ThemePreference }
   | { readonly type: "setPublicHistory"; readonly enabled: boolean }
   | { readonly type: "setChangeNotifications"; readonly enabled: boolean }
   | { readonly type: "hideGroupSuggestion"; readonly key: string }
-  | { readonly type: "saveProfile"; readonly roles: ReadonlyArray<string>; readonly sectors: ReadonlyArray<string>; readonly groups: ReadonlyArray<string> }
+  | { readonly type: "saveProfile"; readonly roles: ReadonlyArray<string>; readonly sectors: ReadonlyArray<string>; readonly groups: ReadonlyArray<string>; readonly manualGroups: Readonly<Record<string, boolean>>; readonly selectionRevision?: number }
   | { readonly type: "skipProfile" }
   | { readonly type: "compareWith"; readonly id: string }
   | { readonly type: "copyBatch"; readonly batchId: string }

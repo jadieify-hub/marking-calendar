@@ -70,7 +70,8 @@ public sealed record ChangeSummaryViewModel(
     string Detail,
     string Stage,
     IReadOnlyList<ChangedFieldViewModel> ChangedFields,
-    bool Mine);
+    bool Mine,
+    string GroupKey = "");
 public sealed record ChangeBatchViewModel(
     string Id,
     string CheckedAt,
@@ -130,4 +131,5 @@ public sealed record AppViewModel(
     AppUpdateViewModel AppUpdate,
     ProductViewModel About,
     IReadOnlyList<GroupSuggestionViewModel> GroupSuggestions,
-    UserProfileViewModel Profile = null!);
+    UserProfileViewModel Profile = null!,
+    int SelectionRevision = 0);

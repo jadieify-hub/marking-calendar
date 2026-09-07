@@ -16,7 +16,8 @@ public sealed record ChangeSummary(
     DateOnly? Date,
     IReadOnlyList<ChangedField> ChangedFields,
     bool Mine,
-    EventCategory Category = EventCategory.Other);
+    EventCategory Category = EventCategory.Other,
+    string GroupKey = "");
 
 public sealed record ChangeSummaryResult(
     ChangeCounts Counts,
@@ -82,7 +83,8 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
             EventDate(item),
             changedFields,
             selectedGroups.Count > 0 && selectedGroups.Contains(GroupKey.Normalize(item.Group)),
-            EventClassifier.Classify(item.Type, item.Stage));
+            EventClassifier.Classify(item.Type, item.Stage),
+            GroupKey.Normalize(item.Group));
 
     private static string FormatDate(DateOnly? date) =>
         date?.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("ru-RU")) ?? "дата не указана";

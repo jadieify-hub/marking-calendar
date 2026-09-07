@@ -9,7 +9,7 @@ public sealed class WebMessageRouterTests
     [Theory]
     [InlineData("https://честныйзнак.рф/business/projects/beer/")]
     [InlineData("https://github.com/jadieify-hub/marking-calendar")]
-    [InlineData("https://pay.cloudtips.ru/p/a18da555")]
+    [InlineData("https://pay.cloudtips.ru/p/53698013")]
     public async Task HandleAsync_OpensOnlyTrustedHttpsTargets(string url)
     {
         var launcher = new RecordingLauncher();
@@ -45,7 +45,7 @@ public sealed class WebMessageRouterTests
         var result = await router.HandleAsync("{\"type\":\"copySupportUrl\"}", CancellationToken.None);
 
         Assert.Equal(WebCommandResult.Handled, result);
-        Assert.Equal("https://pay.cloudtips.ru/p/a18da555", Assert.Single(clipboard.Values));
+        Assert.Equal("https://pay.cloudtips.ru/p/53698013", Assert.Single(clipboard.Values));
     }
 
     [Fact]
@@ -207,6 +207,29 @@ public sealed class WebMessageRouterTests
         Assert.Equal(["бад"], profile?.Groups);
         Assert.Equal(WebCommandResult.Handled, skippedResult);
         Assert.True(skipped);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PreservesExplicitProfileOverridesAndSelectionRevision()
+    {
+        WebProfileSelection? profile = null;
+        var revision = 0;
+        var router = new WebMessageRouter(new RecordingLauncher(), new RecordingClipboard(),
+            _ => Task.CompletedTask, _ => Task.CompletedTask, (_, _) => Task.CompletedTask,
+            preferences: new WebPreferenceHandlers((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask,
+                SaveProfile: (value, _) => { profile = value; return Task.CompletedTask; },
+                SelectionChanged: value => revision = value));
+        var result = await router.HandleAsync(
+            """{"type":"saveProfile","roles":[],"sectors":[],"groups":["БАД"],"manualGroups":{" БАД ":true,"обувь":false},"selectionRevision":4}""",
+            CancellationToken.None);
+        Assert.Equal(WebCommandResult.Handled, result);
+        Assert.True(profile!.ManualGroups!["бад"]);
+        Assert.False(profile.ManualGroups["обувь"]);
+        Assert.Equal(4, revision);
+        var invalid = await router.HandleAsync(
+            """{"type":"saveProfile","roles":[],"sectors":[],"groups":[],"manualGroups":{"бад":"yes"}}""",
+            CancellationToken.None);
+        Assert.Equal(WebCommandResult.Rejected, invalid);
     }
 
     [Theory]

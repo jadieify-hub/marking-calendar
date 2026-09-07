@@ -52,6 +52,7 @@ function isAppViewModel(value: unknown): value is AppViewModel {
     && Array.isArray(value.groupSuggestions)
     && value.groupSuggestions.every(isGroupSuggestion)
     && isProfile(value.profile)
+    && (value.selectionRevision === undefined || (Number.isSafeInteger(value.selectionRevision) && (value.selectionRevision as number) >= 0))
     && Array.isArray(value.selectedGroups)
     && value.selectedGroups.every((group) => typeof group === "string")
     && typeof value.hasSelectedGroups === "boolean"
@@ -217,7 +218,8 @@ function isChangeSummary(value: unknown): boolean {
     && typeof value.stage === "string"
     && Array.isArray(value.changedFields)
     && value.changedFields.every(isChangedField)
-    && typeof value.mine === "boolean";
+    && typeof value.mine === "boolean"
+    && (value.groupKey === undefined || typeof value.groupKey === "string");
 }
 
 function isToast(value: unknown): boolean {

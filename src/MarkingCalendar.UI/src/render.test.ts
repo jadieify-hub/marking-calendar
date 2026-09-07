@@ -30,13 +30,150 @@ const model = {
   toast: null,
   updateNotice: null,
   appUpdate: { kind: "current", message: "Установлена последняя версия", progress: null, version: null, canRestart: false },
-  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/a18da555", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
+  about: { name: "Календарь маркировки", version: "0.1.5", developer: "Руслан Керусов", publisher: "KRS", repositoryUrl: "https://github.com/jadieify-hub/marking-calendar", historyUrl: "https://github.com/jadieify-hub/marking-calendar/blob/data/CHANGELOG.md", supportUrl: "https://pay.cloudtips.ru/p/53698013", disclaimer: "Независимый проект", publicHistoryEnabled: true, changeNotificationsEnabled: true },
 } as const;
 
 const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
 
 describe("renderApp", () => {
+  it("updates download progress in About without losing its focus or scroll", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const mounted = mountApp(root, vi.fn());
+    mounted.update(model);
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="about"]')!.click();
+    const dialog = root.querySelector<HTMLElement>(".about-dialog")!;
+    const logs = dialog.querySelector<HTMLButtonElement>('[data-action="open-logs"]')!;
+    logs.focus();
+    dialog.scrollTop = 140;
+    mounted.update({ ...model, appUpdate: { kind: "downloading", message: "Загрузка", progress: 45, version: "1.0", canRestart: false } });
+    expect(root.querySelector(".about-dialog")).toBe(dialog);
+    expect(document.activeElement).toBe(logs);
+    expect(dialog.scrollTop).toBe(140);
+    expect(dialog.querySelector(".app-update-status")!.textContent).toContain("45%");
+    mounted.update({ ...model, appUpdate: { kind: "ready", message: "Готово", progress: 100, version: "1.0", canRestart: true } });
+    expect(dialog.querySelector('[data-action="restart-update"]')).not.toBeNull();
+    root.remove();
+  });
+
+  it("keeps subscribed removed groups visible in history", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model, hasSelectedGroups: true, history: { unreadCount: 0, batches: [{
+      id: "removed", checkedAt: "Сегодня", isUnread: false,
+      counts: { added: 0, removed: 1, moved: 0, changed: 0, total: 1 }, mineCount: 1, othersCount: 0,
+      items: [{ kind: "removed", title: "Удалённая группа", detail: "", stage: "", changedFields: [], mine: true, groupKey: "удаленная группа" }],
+    }] } }, vi.fn());
+    expect(root.querySelector(".history-list")!.textContent).toContain("Удалённая группа");
+  });
+
+  it("filters history immediately using the local group selection", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update({ ...model, history: { unreadCount: 0, batches: [{
+      id: "batch", checkedAt: "Сегодня", isUnread: false,
+      counts: { added: 2, removed: 0, moved: 0, changed: 0, total: 2 }, mineCount: 0, othersCount: 2,
+      items: [
+        { kind: "added", title: "Игрушки — Старт", detail: "", stage: "", changedFields: [], mine: false, groupKey: "игрушки" },
+        { kind: "added", title: "Обувь — Старт", detail: "", stage: "", changedFields: [], mine: false, groupKey: "обувь" },
+      ],
+    }] } });
+    const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
+    toys.checked = true;
+    toys.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(root.querySelector(".history-list")!.textContent).toContain("Игрушки — Старт");
+    expect(root.querySelector(".history-list")!.textContent).not.toContain("Обувь — Старт");
+    expect(root.querySelector(".other-changes")!.textContent).toContain("ещё 1");
+  });
+
+  it("updates the open event contents when a host event really changes", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update(model);
+    root.querySelector<HTMLButtonElement>("[data-card-key]")!.click();
+    const dialog = root.querySelector(".event-dialog");
+    mounted.update({ ...model, status: { kind: "checking", message: "Проверка" } });
+    expect(root.querySelector(".event-dialog")).toBe(dialog);
+    mounted.update({ ...model, events: [{ ...model.events[0], description: "Новое описание события" }, model.events[1]] });
+    expect(root.querySelector(".event-dialog")!.textContent).toContain("Новое описание события");
+  });
+
+  it("keeps the last category unchecked until reset", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update(model);
+    root.querySelector<HTMLButtonElement>('[data-category="retail"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-category="marking"]')!.click();
+    mounted.update(model);
+    expect(root.querySelectorAll(".event-row")).toHaveLength(0);
+    expect(root.querySelector('[data-category="marking"]')!.getAttribute("aria-pressed")).toBe("false");
+    root.querySelector<HTMLButtonElement>('[data-action="reset-filters"]')!.click();
+    expect(root.querySelectorAll(".event-row")).toHaveLength(2);
+  });
+
+  it("makes sidebar choices available to profile and retains explicit choices matching a sector", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    const mounted = mountApp(root, send);
+    const profiled = { ...model, profile: { ...model.profile, sectors: [
+      { id: "toys", label: "Игрушки", activeGroupCount: 1, groupKeys: ["игрушки"] },
+    ] } };
+    mounted.update(profiled);
+    const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
+    toys.checked = true;
+    toys.dispatchEvent(new Event("change", { bubbles: true }));
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="profile"]')!.click();
+    expect(root.querySelector<HTMLInputElement>('[data-profile-group="игрушки"]')!.checked).toBe(true);
+    root.querySelector<HTMLButtonElement>('[data-profile-sector="toys"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="profile-save"]')!.click();
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({
+      type: "saveProfile", sectors: ["toys"], manualGroups: { "игрушки": true },
+    }));
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="profile"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-profile-sector="toys"]')!.click();
+    expect(root.querySelector<HTMLInputElement>('[data-profile-group="игрушки"]')!.checked).toBe(true);
+  });
+
+  it("applies authoritative renamed selection without rolling back newer local choices", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update(model);
+    const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
+    toys.checked = true;
+    toys.dispatchEvent(new Event("change", { bubbles: true }));
+    const shoes = root.querySelector<HTMLInputElement>('[data-group="обувь"]')!;
+    shoes.checked = true;
+    shoes.dispatchEvent(new Event("change", { bubbles: true }));
+    mounted.update({ ...model, selectedGroups: ["игрушки"], hasSelectedGroups: true, selectionRevision: 1 } as AppViewModel);
+    expect(root.querySelector<HTMLInputElement>('[data-group="обувь"]')!.checked).toBe(true);
+    mounted.update({ ...model, selectedGroups: ["новые игрушки", "обувь"], hasSelectedGroups: true, selectionRevision: 2,
+      groups: [{ ...model.groups[0], key: "новые игрушки", name: "Новые игрушки" }, model.groups[1]],
+    } as AppViewModel);
+    expect(root.querySelector<HTMLInputElement>('[data-group="новые игрушки"]')!.checked).toBe(true);
+  });
+
+  it("preserves the focused open profile details on status updates", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const mounted = mountApp(root, vi.fn());
+    mounted.update({ ...model, profile: { ...model.profile, onboardingCompleted: false } });
+    const dialog = root.querySelector<HTMLElement>(".profile-dialog")!;
+    const details = dialog.querySelector<HTMLDetailsElement>("details")!;
+    details.open = true;
+    dialog.scrollTop = 135;
+    const summary = details.querySelector("summary")!;
+    summary.focus();
+    mounted.update({ ...model, profile: { ...model.profile, onboardingCompleted: false }, status: { kind: "checking", message: "Проверка" } });
+    expect(root.querySelector(".profile-dialog")).toBe(dialog);
+    expect(details.open).toBe(true);
+    expect(dialog.scrollTop).toBe(135);
+    expect(document.activeElement).toBe(summary);
+    root.remove();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem(GUIDE_STORAGE_KEY, "done");
@@ -235,7 +372,7 @@ describe("renderApp", () => {
       checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    expect(send).toHaveBeenCalledWith({ type: "setGroups", groups: ["игрушки"] });
+    expect(send).toHaveBeenCalledWith({ type: "setGroups", groups: ["игрушки"], selectionRevision: 1 });
     expect(root.querySelector('[data-event-id="1"]')).not.toBeNull();
     expect(root.querySelector('[data-event-id="2"]')).toBeNull();
     expect(root.querySelector(".feed-status")?.textContent).toContain("Показано 1 из 2");
@@ -277,7 +414,7 @@ describe("renderApp", () => {
 
     root.querySelector<HTMLButtonElement>('[data-add-group="игрушки"]')?.click();
 
-    expect(send).toHaveBeenCalledWith({ type: "setGroups", groups: ["игрушки", "обувь"] });
+    expect(send).toHaveBeenCalledWith({ type: "setGroups", groups: ["игрушки", "обувь"], selectionRevision: 1 });
     expect(root.querySelector(".group-suggestions")?.textContent).not.toContain("Игрушки");
     expect(root.querySelector('[data-group="игрушки"]')?.parentElement?.querySelector(".group-new-badge")).not.toBeNull();
     expect(root.querySelector('[data-group="обувь"]')?.parentElement?.querySelector(".group-new-badge")).toBeNull();
@@ -326,7 +463,7 @@ describe("renderApp", () => {
     root.querySelector<HTMLButtonElement>('[data-profile-sector="food"]')?.click();
     root.querySelector<HTMLButtonElement>('[data-action="profile-save"]')?.click();
 
-    expect(send).toHaveBeenCalledWith({ type: "saveProfile", roles: ["retail", "producer"], sectors: [], groups: ["бад"] });
+    expect(send).toHaveBeenCalledWith({ type: "saveProfile", roles: ["retail", "producer"], sectors: [], groups: ["бад"], manualGroups: { "бад": true }, selectionRevision: 1 });
   });
 
   it("skips onboarding on Escape and reopens profile from Help", () => {

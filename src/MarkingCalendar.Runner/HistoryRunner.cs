@@ -77,6 +77,15 @@ public sealed class HistoryRunner(
             var batchId = changes.HasChanges
                 ? ChangeBatchIdFactory.FromSnapshots(baseline.Id, payload.Snapshot.Id)
                 : null;
+            var batch = batchId is null
+                ? null
+                : new ChangeBatch(
+                    batchId,
+                    _timeProvider.GetUtcNow(),
+                    changes,
+                    baseline.Id,
+                    payload.Snapshot.Id,
+                    ChangeBatchSources.Public);
 
             if (options.DryRun)
             {
@@ -91,24 +100,14 @@ public sealed class HistoryRunner(
                     ? CreateStore(paths, new CountAnomalyAcceptingValidator(_validator))
                     : null;
                 var targetStore = acceptingStore ?? store;
-                var saved = await targetStore.SaveValidatedAsync(payload.Snapshot, cancellationToken).ConfigureAwait(false);
+                var saved = await targetStore.SaveUpdateAsync(
+                    payload.Snapshot,
+                    batch,
+                    cancellationToken).ConfigureAwait(false);
                 if (!saved.Saved)
                 {
                     await WriteRejectedAsync(paths, payload.RawJson, cancellationToken).ConfigureAwait(false);
                     return new HistoryRunResult(HistoryRunnerExitCode.Rejected, FormatRejected(saved.Validation));
-                }
-
-                if (batchId is not null)
-                {
-                    await targetStore.AppendHistoryAsync(
-                        new ChangeBatch(
-                            batchId,
-                            _timeProvider.GetUtcNow(),
-                            changes,
-                            baseline.Id,
-                            payload.Snapshot.Id,
-                            ChangeBatchSources.Public),
-                        cancellationToken).ConfigureAwait(false);
                 }
             }
 

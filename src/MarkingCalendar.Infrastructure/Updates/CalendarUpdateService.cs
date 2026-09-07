@@ -43,7 +43,16 @@ public sealed class CalendarUpdateService(
             var changes = baseline is null
                 ? new ChangeSet(candidate.Events, [], [], [])
                 : _diffEngine.Compare(baseline.Events, candidate.Events);
-            var saved = await _store.SaveValidatedAsync(candidate, cancellationToken).ConfigureAwait(false);
+            var batch = changes.HasChanges
+                ? new ChangeBatch(
+                    ChangeBatchIdFactory.FromSnapshots(baseline?.Id, candidate.Id),
+                    _timeProvider.GetUtcNow(),
+                    changes,
+                    baseline?.Id,
+                    candidate.Id,
+                    ChangeBatchSources.Local)
+                : null;
+            var saved = await _store.SaveUpdateAsync(candidate, batch, cancellationToken).ConfigureAwait(false);
             if (!saved.Saved)
             {
                 var message = string.Join(' ', saved.Validation.Errors.Select(error => error.Message));
@@ -60,20 +69,6 @@ public sealed class CalendarUpdateService(
                     ChangeSet.Empty,
                     null,
                     message);
-            }
-
-            ChangeBatch? batch = null;
-            if (changes.HasChanges)
-            {
-                var batchId = ChangeBatchIdFactory.FromSnapshots(baseline?.Id, candidate.Id);
-                batch = new ChangeBatch(
-                    batchId,
-                    _timeProvider.GetUtcNow(),
-                    changes,
-                    baseline?.Id,
-                    candidate.Id,
-                    ChangeBatchSources.Local);
-                await _store.AppendHistoryAsync(batch, cancellationToken).ConfigureAwait(false);
             }
 
             var updatedMessage = changes.Total == 0 ? "Календарь обновлён." : $"Календарь обновлён: {changes.Total} изменений.";

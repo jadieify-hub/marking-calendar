@@ -11,7 +11,7 @@ public sealed class IcsCalendarWriter(string productName, string productVersion,
     private readonly string _productVersion = productVersion ?? throw new ArgumentNullException(nameof(productVersion));
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-    public string Write(IEnumerable<CalendarEvent> events)
+    public string Write(IEnumerable<CalendarEvent> events, IReadOnlyDictionary<string, string>? eventUids = null)
     {
         ArgumentNullException.ThrowIfNull(events);
         var result = new StringBuilder();
@@ -26,7 +26,7 @@ public sealed class IcsCalendarWriter(string productName, string productVersion,
             var start = item.Start ?? item.End ?? throw new ArgumentException("Событие не содержит даты.", nameof(events));
             var end = (item.End ?? item.Start ?? start).AddDays(1);
             Append(result, "BEGIN:VEVENT");
-            Append(result, $"UID:{Escape(item.Id)}@marking-calendar");
+            Append(result, $"UID:{Escape(eventUids is null ? item.Id : eventUids[item.Id])}@marking-calendar");
             Append(result, $"DTSTAMP:{stamp}");
             Append(result, $"DTSTART;VALUE=DATE:{Date(start)}");
             Append(result, $"DTEND;VALUE=DATE:{Date(end)}");

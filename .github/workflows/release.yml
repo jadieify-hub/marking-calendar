@@ -14,7 +14,13 @@ concurrency:
   queue: max
 
 jobs:
+  ci:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: ci
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7

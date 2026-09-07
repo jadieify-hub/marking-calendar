@@ -7,6 +7,10 @@ public sealed class EventDiffEngine : IEventDiffEngine
 {
     public ChangeSet Compare(
         IReadOnlyList<CalendarEvent> previous,
+        IReadOnlyList<CalendarEvent> current) => CompareWithIdentities(previous, current).Changes;
+
+    public static (ChangeSet Changes, IReadOnlyDictionary<string, string> PreviousIds) CompareWithIdentities(
+        IReadOnlyList<CalendarEvent> previous,
         IReadOnlyList<CalendarEvent> current)
     {
         ArgumentNullException.ThrowIfNull(previous);
@@ -20,24 +24,25 @@ public sealed class EventDiffEngine : IEventDiffEngine
 
         var usedPrevious = new HashSet<int>();
         var usedCurrent = new HashSet<int>();
+        var previousIds = new Dictionary<string, string>(StringComparer.Ordinal);
         var moved = new List<EventChange>();
         var changed = new List<EventChange>();
 
-        PairExact(previous, current, aliases, usedPrevious, usedCurrent);
-        PairByIdentity(previous, current, aliases, usedPrevious, usedCurrent, moved, changed);
-        PairWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, changed);
-        PairTolerantWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, moved, changed);
+        PairExact(previous, current, aliases, usedPrevious, usedCurrent, previousIds);
+        PairByIdentity(previous, current, aliases, usedPrevious, usedCurrent, moved, changed, previousIds);
+        PairWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, changed, previousIds);
+        PairTolerantWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, moved, changed, previousIds);
 
         var added = current.Where((_, index) => !usedCurrent.Contains(index)).ToArray();
         var removed = previous.Where((_, index) => !usedPrevious.Contains(index)).ToArray();
-        return new ChangeSet(
+        return (new ChangeSet(
             added,
             removed,
             moved.ToArray(),
             changed.ToArray(),
             groupChanges.Added,
             groupChanges.Removed,
-            groupChanges.Renamed);
+            groupChanges.Renamed), previousIds);
     }
 
     private static void PairExact(
@@ -45,7 +50,8 @@ public sealed class EventDiffEngine : IEventDiffEngine
         IReadOnlyList<CalendarEvent> current,
         IReadOnlyDictionary<string, string> aliases,
         HashSet<int> usedPrevious,
-        HashSet<int> usedCurrent)
+        HashSet<int> usedCurrent,
+        Dictionary<string, string> previousIds)
     {
         var byContent = previous
             .Select((item, index) => (item, index))
@@ -59,8 +65,10 @@ public sealed class EventDiffEngine : IEventDiffEngine
                 continue;
             }
 
-            usedPrevious.Add(indexes.Dequeue());
+            var previousIndex = indexes.Dequeue();
+            usedPrevious.Add(previousIndex);
             usedCurrent.Add(currentIndex);
+            previousIds[current[currentIndex].Id] = previous[previousIndex].Id;
         }
     }
 
@@ -71,7 +79,8 @@ public sealed class EventDiffEngine : IEventDiffEngine
         HashSet<int> usedPrevious,
         HashSet<int> usedCurrent,
         List<EventChange> moved,
-        List<EventChange> changed)
+        List<EventChange> changed,
+        Dictionary<string, string> previousIds)
     {
         var identities = previous.Where((_, index) => !usedPrevious.Contains(index)).Select(item => Identity(item, true, aliases))
             .Concat(current.Where((_, index) => !usedCurrent.Contains(index)).Select(item => Identity(item, false, aliases)))
@@ -97,6 +106,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
 
                 usedPrevious.Add(pair.Previous);
                 usedCurrent.Add(pair.Current);
+                previousIds[newEvent.Id] = oldEvent.Id;
                 previousIndexes.Remove(pair.Previous);
                 currentIndexes.Remove(pair.Current);
 
@@ -119,7 +129,8 @@ public sealed class EventDiffEngine : IEventDiffEngine
         IReadOnlyDictionary<string, string> aliases,
         HashSet<int> usedPrevious,
         HashSet<int> usedCurrent,
-        List<EventChange> changed)
+        List<EventChange> changed,
+        Dictionary<string, string> previousIds)
     {
         for (var currentIndex = 0; currentIndex < current.Count; currentIndex++)
         {
@@ -144,6 +155,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
 
             usedPrevious.Add(previousIndex);
             usedCurrent.Add(currentIndex);
+            previousIds[candidate.Id] = previous[previousIndex].Id;
             changed.Add(EventChange.Changed(previous[previousIndex], candidate));
         }
     }
@@ -175,7 +187,8 @@ public sealed class EventDiffEngine : IEventDiffEngine
         HashSet<int> usedPrevious,
         HashSet<int> usedCurrent,
         List<EventChange> moved,
-        List<EventChange> changed)
+        List<EventChange> changed,
+        Dictionary<string, string> previousIds)
     {
         var keys = previous.Where((_, index) => !usedPrevious.Contains(index)).Select(item => GroupTypeKey(item, true, aliases))
             .Concat(current.Where((_, index) => !usedCurrent.Contains(index)).Select(item => GroupTypeKey(item, false, aliases)))
@@ -208,6 +221,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
                 var newEvent = current[pair.Current];
                 usedPrevious.Add(pair.Previous);
                 usedCurrent.Add(pair.Current);
+                previousIds[newEvent.Id] = oldEvent.Id;
                 previousIndexes.Remove(pair.Previous);
                 currentIndexes.Remove(pair.Current);
                 if (oldEvent.Start != newEvent.Start || oldEvent.End != newEvent.End)

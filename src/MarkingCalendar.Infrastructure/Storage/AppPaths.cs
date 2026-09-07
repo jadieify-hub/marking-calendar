@@ -26,6 +26,7 @@ public sealed class AppPaths
     public string ChangeHistoryFile => Path.Combine(HistoryDirectory, "changes.json");
     public string ArchiveDirectory => Path.Combine(RootDirectory, "archive");
     public string LogDirectory => Path.Combine(RootDirectory, "logs");
+    public string ExportIdentityFile => Path.Combine(RootDirectory, "export-identities.json");
     public string StateFile => Path.Combine(RootDirectory, "state.json");
     public string WindowStateFile => Path.Combine(RootDirectory, "window-state.json");
     public string BrowserDataDirectory => Path.Combine(RootDirectory, "webview2");

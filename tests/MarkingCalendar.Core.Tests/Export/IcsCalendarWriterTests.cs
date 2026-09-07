@@ -82,6 +82,17 @@ public sealed class IcsCalendarWriterTests
         Assert.Contains(physicalLines, line => line.StartsWith(' '));
     }
 
+    [Fact]
+    public void Write_UsesAssignedUidForCurrentEventContent()
+    {
+        var item = Event("new-content", new DateOnly(2026, 10, 1), null);
+
+        var actual = Writer().Write([item], new Dictionary<string, string> { [item.Id] = "original-export" });
+
+        Assert.Contains("UID:original-export@marking-calendar\r\n", actual, StringComparison.Ordinal);
+        Assert.Contains("DTSTART;VALUE=DATE:20261001\r\n", actual, StringComparison.Ordinal);
+    }
+
     private static IcsCalendarWriter Writer() =>
         new("Календарь маркировки", "0.1.10", new FixedTimeProvider());
 

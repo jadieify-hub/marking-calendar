@@ -286,7 +286,7 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
         changes?.GroupsRenamed.Count ?? 0);
 
     private static ChangeSummaryViewModel Item(ChangeSummary item) =>
-        new(Kind(item.Kind), item.Title, item.Detail, item.Stage, item.ChangedFields.Select(Field).ToArray(), item.Mine);
+        new(Kind(item.Kind), item.Title, item.Detail, item.Stage, item.ChangedFields.Select(Field).ToArray(), item.Mine, item.GroupKey);
 
     private static ChangedFieldViewModel Field(ChangedField field) =>
         new(field.Field, field.Previous, field.Current);
