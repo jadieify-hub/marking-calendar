@@ -252,6 +252,10 @@ class TimelineRenderer implements MountedApp {
               <h2>Товарные группы</h2>
               <div class="group-mode" aria-label="Режим товарных групп"><button type="button" data-group-mode="mine" aria-pressed="false">Только мои</button><button type="button" data-group-mode="all" aria-pressed="true">Все</button></div>
               <input class="filter-field" type="search" data-filter="group-query" placeholder="найти группу">
+              <div class="group-selection" role="group" aria-label="Выбор всех товарных групп">
+                <button type="button" class="secondary-button" data-select-groups="all" title="Выбрать все группы, включая скрытые поиском" disabled>Выбрать все</button>
+                <button type="button" class="secondary-button" data-select-groups="none" title="Снять выбор со всех групп, включая скрытые поиском" disabled>Снять все</button>
+              </div>
               <div class="group-list"></div>
             </section>
             <section class="sidebar-section" data-section="categories"><h2>Категории</h2><div class="category-list"></div></section>
@@ -370,17 +374,15 @@ class TimelineRenderer implements MountedApp {
       if (!checkbox?.dataset.group) return;
       if (checkbox.checked) this.state.selectedGroups.add(checkbox.dataset.group);
       else this.state.selectedGroups.delete(checkbox.dataset.group);
-      if (checkbox.checked && this.state.selectedGroups.size === 1) this.state.historyMode = "mine";
-      if (this.state.selectedGroups.size === 0) this.state.historyMode = "all";
-      this.state.hasSelectedGroups = this.state.selectedGroups.size > 0;
-      this.state.groupMode = this.state.selectedGroups.size > 0 ? "mine" : "all";
-      this.state.visibleDayLimit = 90;
-      this.sendSelectedGroups();
-      this.renderGroups();
-      this.renderCategories();
-      this.renderCalendar();
-      this.renderHistory();
+      this.applyGroupSelection();
     });
+    this.root.querySelectorAll<HTMLButtonElement>("[data-select-groups]").forEach((button) => button.addEventListener("click", () => {
+      this.state.selectedGroups.clear();
+      if (button.dataset.selectGroups === "all") {
+        for (const group of this.requireModel().groups) this.state.selectedGroups.add(group.key);
+      }
+      this.applyGroupSelection();
+    }));
     this.root.querySelectorAll<HTMLButtonElement>("[data-group-mode]").forEach((button) => button.addEventListener("click", () => {
       this.state.groupMode = button.dataset.groupMode === "mine" ? "mine" : "all";
       this.state.visibleDayLimit = 90;
@@ -669,6 +671,9 @@ class TimelineRenderer implements MountedApp {
       label.append(checkbox, createProductGroupIcon(group.name), name, count);
       list.append(label);
     }
+    required(this.root.querySelector<HTMLButtonElement>('[data-select-groups="all"]')).disabled =
+      model.groups.every(group => this.state.selectedGroups.has(group.key));
+    required(this.root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')).disabled = this.state.selectedGroups.size === 0;
     this.root.querySelectorAll<HTMLButtonElement>("[data-group-mode]").forEach((button) => {
       const active = button.dataset.groupMode === this.state.groupMode;
       button.classList.toggle("is-active", active);
@@ -1218,6 +1223,19 @@ class TimelineRenderer implements MountedApp {
     this.renderGroups();
     this.renderCategories();
     this.renderCalendar();
+  }
+
+  private applyGroupSelection(): void {
+    const hasSelection = this.state.selectedGroups.size > 0;
+    if (!this.state.hasSelectedGroups || !hasSelection) this.state.historyMode = hasSelection ? "mine" : "all";
+    this.state.hasSelectedGroups = hasSelection;
+    this.state.groupMode = hasSelection ? "mine" : "all";
+    this.state.visibleDayLimit = 90;
+    this.sendSelectedGroups();
+    this.renderGroups();
+    this.renderCategories();
+    this.renderCalendar();
+    this.renderHistory();
   }
 
   private sendSelectedGroups(): void {

@@ -37,6 +37,45 @@ const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
 
 describe("renderApp", () => {
+  it("selects and clears every group despite search and retains the choice in the profile", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, { ...model, selectedGroups: ["игрушки", "обувь"], hasSelectedGroups: true,
+      profile: { ...model.profile, sectors: [{ id: "shop", label: "Торговля", activeGroupCount: 2, groupKeys: ["игрушки", "обувь"] }] },
+    }, send);
+    const query = root.querySelector<HTMLInputElement>('[data-filter="group-query"]')!;
+    const selectAll = root.querySelector<HTMLButtonElement>('[data-select-groups="all"]')!;
+    const clearAll = root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!;
+    expect(selectAll.disabled).toBe(true);
+    query.value = "игрушки";
+    query.dispatchEvent(new Event("input", { bubbles: true }));
+
+    clearAll.click();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenLastCalledWith({ type: "setGroups", groups: [], selectionRevision: 1 });
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(0);
+    expect(clearAll.disabled).toBe(true);
+    expect(selectAll.disabled).toBe(false);
+
+    selectAll.click();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith({ type: "setGroups", groups: ["игрушки", "обувь"], selectionRevision: 2 });
+    expect(selectAll.disabled).toBe(true);
+    expect(clearAll.disabled).toBe(false);
+    query.value = "";
+    query.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(2);
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="profile"]')!.click();
+    expect(root.querySelectorAll("[data-profile-group]:checked")).toHaveLength(2);
+    root.querySelector<HTMLButtonElement>('[data-action="profile-save"]')!.click();
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({
+      type: "saveProfile", groups: ["игрушки", "обувь"], manualGroups: { "игрушки": true, "обувь": true },
+    }));
+  });
+
   it("updates download progress in About without losing its focus or scroll", () => {
     const root = document.createElement("div");
     document.body.append(root);
@@ -229,7 +268,7 @@ describe("renderApp", () => {
     expect(root.querySelector(".filter-summary")?.textContent).toContain("2 категории");
   });
 
-  it("keeps product group controls focused on switching the visible set", () => {
+  it("shows group view modes and bulk selection controls", () => {
     const root = document.createElement("div");
     renderApp(root, model, vi.fn());
 
@@ -237,6 +276,8 @@ describe("renderApp", () => {
     expect(Array.from(groupSection?.querySelectorAll("button") ?? [], (button) => button.textContent?.trim())).toEqual([
       "Только мои",
       "Все",
+      "Выбрать все",
+      "Снять все",
     ]);
   });
 

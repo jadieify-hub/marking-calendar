@@ -138,6 +138,9 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .group-mode { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
 .group-mode button { min-height: 40px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font-size: 13px; cursor: pointer; }
 .group-mode button.is-active { background: var(--surface); color: var(--text); font-weight: 650; box-shadow: var(--shadow-soft); }
+.group-selection { display: flex; gap: 8px; }
+.group-selection button { flex: 1; min-width: 0; min-height: 32px; padding: 0 6px; font-size: 12px; }
+.group-selection button:disabled { opacity: .45; cursor: default; }
 .group-list { max-height: 246px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-soft); }
 .group-list label { display: flex; min-height: 40px; align-items: flex-start; gap: 8px; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); color: var(--text-soft); font-size: 13.5px; line-height: 1.35; cursor: pointer; }
 .group-list label:last-child { border-bottom: 0; }
