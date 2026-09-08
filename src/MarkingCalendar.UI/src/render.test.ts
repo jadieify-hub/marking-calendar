@@ -37,43 +37,77 @@ const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
 
 describe("renderApp", () => {
-  it("selects and clears every group despite search and retains the choice in the profile", () => {
+  it.each(["all", "none"])("keeps the profile intact when bulk selection is %s", (selection) => {
     const root = document.createElement("div");
     const send = vi.fn();
-    renderApp(root, { ...model, selectedGroups: ["игрушки", "обувь"], hasSelectedGroups: true,
-      profile: { ...model.profile, sectors: [{ id: "shop", label: "Торговля", activeGroupCount: 2, groupKeys: ["игрушки", "обувь"] }] },
-    }, send);
+    const mounted = mountApp(root, send);
+    const profiled: AppViewModel = { ...model, selectedGroups: ["игрушки"], hasSelectedGroups: true,
+      profile: { ...model.profile, selectedSectors: ["shop"], manualGroups: { "обувь": false },
+        sectors: [{ id: "shop", label: "Торговля", activeGroupCount: 2, groupKeys: ["игрушки", "обувь"] }],
+      },
+    };
+    mounted.update(profiled);
     const query = root.querySelector<HTMLInputElement>('[data-filter="group-query"]')!;
-    const selectAll = root.querySelector<HTMLButtonElement>('[data-select-groups="all"]')!;
-    const clearAll = root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!;
-    expect(selectAll.disabled).toBe(true);
     query.value = "игрушки";
     query.dispatchEvent(new Event("input", { bubbles: true }));
+    root.querySelector<HTMLButtonElement>(`[data-select-groups="${selection}"]`)!.click();
 
-    clearAll.click();
-
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenLastCalledWith({ type: "setGroups", groups: [], selectionRevision: 1 });
-    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(0);
-    expect(clearAll.disabled).toBe(true);
-    expect(selectAll.disabled).toBe(false);
-
-    selectAll.click();
-
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(send).toHaveBeenLastCalledWith({ type: "setGroups", groups: ["игрушки", "обувь"], selectionRevision: 2 });
-    expect(selectAll.disabled).toBe(true);
-    expect(clearAll.disabled).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(root.querySelector('[data-group-mode="all"]')!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector<HTMLButtonElement>('[data-select-groups="all"]')!.disabled).toBe(selection === "all");
+    expect(root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!.disabled).toBe(selection === "none");
     query.value = "";
     query.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(2);
+    mounted.update({ ...profiled, status: { kind: "checking", message: "Проверка" } });
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(selection === "all" ? 2 : 0);
+    expect(root.querySelectorAll(".event-row")).toHaveLength(selection === "all" ? 2 : 0);
+    expect(root.querySelectorAll(".upcoming-tile")).toHaveLength(selection === "all" ? 1 : 0);
+    expect(root.querySelector('[data-category="marking"] .filter-count')!.textContent).toBe(selection === "all" ? "1" : "0");
+
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
+    expect(root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!.checked).toBe(true);
+    expect(root.querySelector<HTMLInputElement>('[data-group="обувь"]')!.checked).toBe(false);
+    expect(root.querySelectorAll(".event-row")).toHaveLength(1);
+    root.querySelector<HTMLButtonElement>('[data-group-mode="all"]')!.click();
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(selection === "all" ? 2 : 0);
+    const shoes = root.querySelector<HTMLInputElement>('[data-group="обувь"]')!;
+    shoes.checked = selection === "none";
+    shoes.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(send).not.toHaveBeenCalled();
+    expect(root.querySelectorAll(".event-row")).toHaveLength(1);
+    root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]')!.click();
+    expect(send).toHaveBeenLastCalledWith({ type: "exportCalendar", eventIds: [selection === "all" ? "1" : "2"] });
+
     root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
     root.querySelector<HTMLButtonElement>('[data-action="profile"]')!.click();
-    expect(root.querySelectorAll("[data-profile-group]:checked")).toHaveLength(2);
+    expect(root.querySelectorAll("[data-profile-group]:checked")).toHaveLength(1);
+    expect(root.querySelector<HTMLInputElement>('[data-profile-group="игрушки"]')!.checked).toBe(true);
     root.querySelector<HTMLButtonElement>('[data-action="profile-save"]')!.click();
     expect(send).toHaveBeenLastCalledWith(expect.objectContaining({
-      type: "saveProfile", groups: ["игрушки", "обувь"], manualGroups: { "игрушки": true, "обувь": true },
+      type: "saveProfile", groups: ["игрушки"], sectors: ["shop"], manualGroups: { "обувь": false },
     }));
+  });
+
+  it("keeps manual browsing temporary without a profile and resets all group filters", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, model, send);
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(2);
+    const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
+    toys.checked = false;
+    toys.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(root.querySelectorAll(".event-row")).toHaveLength(1);
+    expect(root.querySelector('[data-event-id="2"]')).not.toBeNull();
+    expect(root.querySelector(".filter-summary")!.textContent).toContain("1 группа");
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(0);
+    expect(root.querySelectorAll(".event-row")).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('[data-group-mode="all"]')!.click();
+    expect(root.querySelectorAll(".event-row")).toHaveLength(1);
+    root.querySelector<HTMLButtonElement>('[data-action="reset-filters"]')!.click();
+    expect(root.querySelectorAll("[data-group]:checked")).toHaveLength(2);
+    expect(root.querySelectorAll(".event-row")).toHaveLength(2);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("updates download progress in About without losing its focus or scroll", () => {
@@ -118,6 +152,7 @@ describe("renderApp", () => {
         { kind: "added", title: "Обувь — Старт", detail: "", stage: "", changedFields: [], mine: false, groupKey: "обувь" },
       ],
     }] } });
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
     const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
     toys.checked = true;
     toys.dispatchEvent(new Event("change", { bubbles: true }));
@@ -159,6 +194,7 @@ describe("renderApp", () => {
       { id: "toys", label: "Игрушки", activeGroupCount: 1, groupKeys: ["игрушки"] },
     ] } };
     mounted.update(profiled);
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
     const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
     toys.checked = true;
     toys.dispatchEvent(new Event("change", { bubbles: true }));
@@ -180,6 +216,7 @@ describe("renderApp", () => {
     const root = document.createElement("div");
     const mounted = mountApp(root, vi.fn());
     mounted.update(model);
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
     const toys = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
     toys.checked = true;
     toys.dispatchEvent(new Event("change", { bubbles: true }));
@@ -406,6 +443,7 @@ describe("renderApp", () => {
     const send = vi.fn();
     renderApp(root, model, send);
 
+    root.querySelector<HTMLButtonElement>('[data-group-mode="mine"]')!.click();
     const checkbox = root.querySelector<HTMLInputElement>('[data-group="игрушки"]');
     expect(checkbox).not.toBeNull();
     if (checkbox) {
@@ -820,6 +858,7 @@ describe("renderApp", () => {
     expect(groupLabels[1]?.classList.contains("is-empty")).toBe(true);
     expect(groupLabels[1]?.querySelector(".filter-count")?.textContent).toBe("0");
 
+    root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!.click();
     const shoes = root.querySelector<HTMLInputElement>('[data-group="обувь"]');
     if (shoes) {
       shoes.checked = true;

@@ -102,6 +102,7 @@ interface UiState {
   readonly expandedHistoryBatchIds: Set<string>;
   initialized: boolean;
   groupMode: "mine" | "all";
+  browsingGroups: Set<string> | null;
   query: string;
   groupQuery: string;
   showPast: boolean;
@@ -140,6 +141,7 @@ class TimelineRenderer implements MountedApp {
     expandedHistoryBatchIds: new Set<string>(),
     initialized: false,
     groupMode: "all",
+    browsingGroups: null,
     query: "",
     groupQuery: "",
     showPast: false,
@@ -253,8 +255,8 @@ class TimelineRenderer implements MountedApp {
               <div class="group-mode" aria-label="Режим товарных групп"><button type="button" data-group-mode="mine" aria-pressed="false">Только мои</button><button type="button" data-group-mode="all" aria-pressed="true">Все</button></div>
               <input class="filter-field" type="search" data-filter="group-query" placeholder="найти группу">
               <div class="group-selection" role="group" aria-label="Выбор всех товарных групп">
-                <button type="button" class="secondary-button" data-select-groups="all" title="Выбрать все группы, включая скрытые поиском" disabled>Выбрать все</button>
-                <button type="button" class="secondary-button" data-select-groups="none" title="Снять выбор со всех групп, включая скрытые поиском" disabled>Снять все</button>
+                <button type="button" class="secondary-button" data-select-groups="all" title="Выбрать все группы в режиме «Все», не меняя профиль" disabled>Выбрать все</button>
+                <button type="button" class="secondary-button" data-select-groups="none" title="Снять выбор со всех групп в режиме «Все», не меняя профиль" disabled>Снять все</button>
               </div>
               <div class="group-list"></div>
             </section>
@@ -372,15 +374,18 @@ class TimelineRenderer implements MountedApp {
     required(this.root.querySelector<HTMLElement>(".group-list")).addEventListener("change", (event) => {
       const checkbox = event.target instanceof HTMLInputElement ? event.target.closest<HTMLInputElement>("[data-group]") : null;
       if (!checkbox?.dataset.group) return;
-      if (checkbox.checked) this.state.selectedGroups.add(checkbox.dataset.group);
-      else this.state.selectedGroups.delete(checkbox.dataset.group);
+      const selected = this.state.groupMode === "mine"
+        ? this.state.selectedGroups
+        : this.state.browsingGroups ??= new Set(this.calendarGroups());
+      if (checkbox.checked) selected.add(checkbox.dataset.group);
+      else selected.delete(checkbox.dataset.group);
       this.applyGroupSelection();
     });
     this.root.querySelectorAll<HTMLButtonElement>("[data-select-groups]").forEach((button) => button.addEventListener("click", () => {
-      this.state.selectedGroups.clear();
-      if (button.dataset.selectGroups === "all") {
-        for (const group of this.requireModel().groups) this.state.selectedGroups.add(group.key);
-      }
+      this.state.groupMode = "all";
+      this.state.browsingGroups = button.dataset.selectGroups === "all"
+        ? new Set(this.requireModel().groups.map(group => group.key))
+        : new Set<string>();
       this.applyGroupSelection();
     }));
     this.root.querySelectorAll<HTMLButtonElement>("[data-group-mode]").forEach((button) => button.addEventListener("click", () => {
@@ -569,7 +574,6 @@ class TimelineRenderer implements MountedApp {
       for (const group of model.selectedGroups) this.state.selectedGroups.add(group);
       this.state.hasSelectedGroups = model.hasSelectedGroups;
       if (changed) {
-        this.state.groupMode = model.hasSelectedGroups ? "mine" : "all";
         this.state.historyMode = model.hasSelectedGroups ? "mine" : "all";
       }
     }
@@ -622,6 +626,7 @@ class TimelineRenderer implements MountedApp {
     const list = required(this.root.querySelector<HTMLElement>(".group-list"));
     list.replaceChildren();
     const query = normalize(this.state.groupQuery);
+    const selected = this.calendarGroups();
     const countEvents = filterEvents(model.events, {
       query: this.state.query,
       selectedGroups: new Set<string>(),
@@ -643,7 +648,7 @@ class TimelineRenderer implements MountedApp {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.dataset.group = group.key;
-      checkbox.checked = this.state.selectedGroups.has(group.key);
+      checkbox.checked = selected.has(group.key);
       const name = document.createElement("span");
       name.className = "group-name";
       name.textContent = group.name;
@@ -672,8 +677,9 @@ class TimelineRenderer implements MountedApp {
       list.append(label);
     }
     required(this.root.querySelector<HTMLButtonElement>('[data-select-groups="all"]')).disabled =
-      model.groups.every(group => this.state.selectedGroups.has(group.key));
-    required(this.root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')).disabled = this.state.selectedGroups.size === 0;
+      this.state.groupMode === "all" && model.groups.every(group => selected.has(group.key));
+    required(this.root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')).disabled =
+      this.state.groupMode === "all" && selected.size === 0;
     this.root.querySelectorAll<HTMLButtonElement>("[data-group-mode]").forEach((button) => {
       const active = button.dataset.groupMode === this.state.groupMode;
       button.classList.toggle("is-active", active);
@@ -687,8 +693,8 @@ class TimelineRenderer implements MountedApp {
     list.replaceChildren();
     const countEvents = filterEvents(model.events, {
       query: this.state.query,
-      selectedGroups: this.state.selectedGroups,
-      groupMode: this.state.groupMode,
+      selectedGroups: this.calendarGroups(),
+      groupMode: "mine",
       categories: new Set(model.categories.map((category) => category.id)),
       showPast: this.state.showPast,
       onlyChanged: this.state.onlyChanged,
@@ -720,10 +726,11 @@ class TimelineRenderer implements MountedApp {
 
   private renderCalendar(): void {
     const model = this.requireModel();
+    const selected = this.calendarGroups();
     const filtered = filterEvents(model.events, {
       query: this.state.query,
-      selectedGroups: this.state.selectedGroups,
-      groupMode: this.state.groupMode,
+      selectedGroups: this.calendarGroups(),
+      groupMode: "mine",
       categories: this.selectedCategories(),
       showPast: this.state.showPast,
       onlyChanged: this.state.onlyChanged,
@@ -751,7 +758,9 @@ class TimelineRenderer implements MountedApp {
     exportButton.disabled = this.visibleEventIds.length === 0;
     required(this.root.querySelector<HTMLElement>(".status-copy small")).textContent = `${statusText} · ${model.updatedAt}`;
     const activeParts = [
-      this.state.groupMode === "mine" ? selectedGroupsLabel(this.state.selectedGroups.size) : "все группы",
+      this.state.groupMode === "mine" ? selectedGroupsLabel(selected.size)
+        : model.groups.every(group => selected.has(group.key)) ? "все группы"
+        : pluralNoun(selected.size, "группа", "группы", "групп"),
       pluralNoun(this.selectedCategories().size, "категория", "категории", "категорий"),
       this.state.showPast ? "с прошедшими" : "с текущего месяца",
       ...(this.state.onlyChanged ? ["только с изменениями"] : []),
@@ -771,8 +780,8 @@ class TimelineRenderer implements MountedApp {
     }
     const yearMonths = groupFeed(filterEvents(model.events, {
       query: this.state.query,
-      selectedGroups: this.state.selectedGroups,
-      groupMode: this.state.groupMode,
+      selectedGroups: this.calendarGroups(),
+      groupMode: "mine",
       categories: this.selectedCategories(),
       showPast: true,
       onlyChanged: this.state.onlyChanged,
@@ -811,8 +820,8 @@ class TimelineRenderer implements MountedApp {
     const model = this.requireModel();
     const filtered = filterEvents(model.events, {
       query: "",
-      selectedGroups: this.state.selectedGroups,
-      groupMode: this.state.groupMode,
+      selectedGroups: this.calendarGroups(),
+      groupMode: "mine",
       categories: this.selectedCategories(),
       showPast: false,
       onlyChanged: this.state.onlyChanged,
@@ -900,8 +909,8 @@ class TimelineRenderer implements MountedApp {
     const model = this.requireModel();
     const filtered = filterEvents(model.events, {
       query: "",
-      selectedGroups: this.state.selectedGroups,
-      groupMode: this.state.groupMode,
+      selectedGroups: this.calendarGroups(),
+      groupMode: "mine",
       categories: this.selectedCategories(),
       showPast: false,
       onlyChanged: this.state.onlyChanged,
@@ -1214,6 +1223,7 @@ class TimelineRenderer implements MountedApp {
     this.state.showPast = false;
     this.state.onlyChanged = false;
     this.state.groupMode = "all";
+    this.state.browsingGroups = null;
     this.state.visibleDayLimit = 90;
     this.state.activeCategories.clear();
     for (const category of model.categories) this.state.activeCategories.add(category.id);
@@ -1225,13 +1235,19 @@ class TimelineRenderer implements MountedApp {
     this.renderCalendar();
   }
 
+  private calendarGroups(): ReadonlySet<string> {
+    return this.state.groupMode === "mine" ? this.state.selectedGroups
+      : this.state.browsingGroups ?? new Set(this.requireModel().groups.map(group => group.key));
+  }
+
   private applyGroupSelection(): void {
-    const hasSelection = this.state.selectedGroups.size > 0;
-    if (!this.state.hasSelectedGroups || !hasSelection) this.state.historyMode = hasSelection ? "mine" : "all";
-    this.state.hasSelectedGroups = hasSelection;
-    this.state.groupMode = hasSelection ? "mine" : "all";
+    if (this.state.groupMode === "mine") {
+      const hasSelection = this.state.selectedGroups.size > 0;
+      if (!this.state.hasSelectedGroups || !hasSelection) this.state.historyMode = hasSelection ? "mine" : "all";
+      this.state.hasSelectedGroups = hasSelection;
+      this.sendSelectedGroups();
+    }
     this.state.visibleDayLimit = 90;
-    this.sendSelectedGroups();
     this.renderGroups();
     this.renderCategories();
     this.renderCalendar();
