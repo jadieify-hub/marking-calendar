@@ -87,6 +87,32 @@ public sealed class AppBootstrapperTests
     }
 
     [Fact]
+    public async Task RefreshAsync_RecordsSuccessfulCheckWithoutChangingSnapshotDate_AndKeepsItOnFailure()
+    {
+        var source = new FixedSource();
+        await using var fixture = await Fixture.CreateAsync(source);
+        await fixture.RefreshAsync();
+        var updated = fixture.Read<AppStatusViewModel>("_status");
+        Assert.NotNull(updated.CheckedAt);
+        fixture.Set("_status", updated with { CheckedAt = "01.01.2000, 00:00" });
+
+        await fixture.RefreshAsync();
+
+        var unchanged = fixture.Read<AppStatusViewModel>("_status");
+        Assert.Equal("ready", unchanged.Kind);
+        Assert.NotNull(unchanged.CheckedAt);
+        Assert.NotEqual("01.01.2000, 00:00", unchanged.CheckedAt);
+        Assert.Equal(Snapshot(moved: true).RetrievedAt, fixture.Read<CalendarSnapshot>("_snapshot").RetrievedAt);
+        source.Fail = true;
+
+        await fixture.RefreshAsync();
+
+        var failed = fixture.Read<AppStatusViewModel>("_status");
+        Assert.Equal("error", failed.Kind);
+        Assert.Equal(unchanged.CheckedAt, failed.CheckedAt);
+    }
+
+    [Fact]
     public async Task RefreshAsync_UnchangedSnapshotKeepsUnreadNoticeAndComparison()
     {
         await using var fixture = await Fixture.CreateAsync(new FixedSource());
@@ -182,7 +208,11 @@ public sealed class AppBootstrapperTests
 
     private sealed class FixedSource : ICalendarSource
     {
-        public Task<CalendarSnapshot> FetchAsync(CancellationToken cancellationToken) => Task.FromResult(Snapshot(moved: true));
+        public bool Fail { get; set; }
+
+        public Task<CalendarSnapshot> FetchAsync(CancellationToken cancellationToken) => Fail
+            ? throw new HttpRequestException("offline")
+            : Task.FromResult(Snapshot(moved: true));
     }
 
     private sealed class PausedSource(bool skipFirst = false) : ICalendarSource

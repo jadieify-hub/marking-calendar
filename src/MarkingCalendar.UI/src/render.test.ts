@@ -263,6 +263,23 @@ describe("renderApp", () => {
     expect(document.documentElement.style.zoom).toBe("");
   });
 
+  it("separates the snapshot date from the last successful check and preserves both during filtering", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update(model);
+    expect(root.querySelector(".status-copy")!.textContent).toContain("Данные от 02.09.2026, 10:00");
+    expect(root.querySelector(".status-copy")!.textContent).toContain("Ещё не проверено");
+    const checked = { ...model, status: { ...model.status, checkedAt: "10.09.2026, 11:45" } };
+    mounted.update(checked);
+    root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!.click();
+    expect(root.querySelector(".status-copy")!.textContent).toContain("Данные от 02.09.2026, 10:00");
+    expect(root.querySelector(".status-copy")!.textContent).toContain("Проверено 10.09.2026, 11:45");
+    expect(root.querySelector(".feed-status")!.textContent).toContain("Показано 0 из 2");
+    mounted.update({ ...checked, status: { kind: "error", message: "Не удалось обновить", checkedAt: "10.09.2026, 11:45" } });
+    expect(root.querySelector(".status-copy strong")!.textContent).toBe("Не удалось обновить");
+    expect(root.querySelector(".status-copy")!.textContent).toContain("Проверено 10.09.2026, 11:45");
+  });
+
   it("mounts one stable shell and updates dependent regions without replacing it", () => {
     const root = document.createElement("div");
     const mounted = mountApp(root, vi.fn());

@@ -248,7 +248,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         catch (Exception error)
         {
             _logger.Log(AppLogLevel.Error, "calendar-refresh", "Не удалось завершить проверку календаря.", error);
-            _status = new AppStatusViewModel("error", "Не удалось завершить проверку. Открыта сохранённая версия");
+            _status = new AppStatusViewModel("error", "Не удалось завершить проверку. Открыта сохранённая версия", _status.CheckedAt);
             try
             {
                 await SendStateAsync().ConfigureAwait(false);
@@ -263,7 +263,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private async Task RefreshCoreAsync(CancellationToken cancellationToken)
     {
         if (_updateService is null || _store is null) return;
-        _status = new AppStatusViewModel("checking", "Проверяем обновления…");
+        _status = new AppStatusViewModel("checking", "Проверяем обновления…", _status.CheckedAt);
         await SendStateAsync().ConfigureAwait(false);
         await SyncPublicHistoryAsync(cancellationToken).ConfigureAwait(false);
         var previousRetrievedAt = _snapshot?.RetrievedAt;
@@ -307,13 +307,18 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
                 await _stateStore.SaveAsync(_state, cancellationToken).ConfigureAwait(false);
             }
         }
-        _status = result.Status switch
+        _status = (result.Status switch
         {
             CalendarUpdateStatus.NoChanges => new AppStatusViewModel("ready", "Данные актуальны"),
             CalendarUpdateStatus.Updated => new AppStatusViewModel("updated", "Календарь обновлён"),
             CalendarUpdateStatus.Rejected => _fallbackStatus ?? new AppStatusViewModel("error", "Обновление отклонено"),
             CalendarUpdateStatus.Failed => _fallbackStatus ?? new AppStatusViewModel("error", "Не удалось обновить"),
             _ => new AppStatusViewModel("ready", result.UserMessage)
+        }) with
+        {
+            CheckedAt = result.Status is CalendarUpdateStatus.NoChanges or CalendarUpdateStatus.Updated
+                ? DateTimeOffset.Now.ToString("dd.MM.yyyy, HH:mm", CultureInfo.GetCultureInfo("ru-RU"))
+                : _status.CheckedAt
         };
         if (result.Status is CalendarUpdateStatus.NoChanges or CalendarUpdateStatus.Updated)
         {

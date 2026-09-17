@@ -71,6 +71,7 @@ function isAppViewModel(value: unknown): value is AppViewModel {
     && isRecord(value.status)
     && typeof value.status.kind === "string"
     && typeof value.status.message === "string"
+    && (value.status.checkedAt == null || typeof value.status.checkedAt === "string")
     && (value.updateNotice === null || isUpdateNotice(value.updateNotice))
     && (value.toast === null || isToast(value.toast))
     && isAppUpdate(value.appUpdate)

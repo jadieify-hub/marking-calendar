@@ -42,6 +42,7 @@ describe("connectBridge", () => {
     const bridge = connectBridge(receive, undefined, openChanges);
     listener?.({ data: { type: "state", model: validModel } });
     listener?.({ data: { type: "state", model: { events: "not-an-array" } } });
+    listener?.({ data: { type: "state", model: { ...validModel, status: { ...validModel.status, checkedAt: 42 } } } });
     listener?.({ data: { type: "state", model: { ...validModel, selectionRevision: -1 } } });
     listener?.({ data: { type: "state", model: { ...validModel, selectionRevision: "1" } } });
     listener?.({ data: { type: "openChanges", batchId: "batch-1" } });

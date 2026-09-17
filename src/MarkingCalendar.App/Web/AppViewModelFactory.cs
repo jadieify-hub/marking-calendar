@@ -120,7 +120,7 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
             : null;
 
         return new AppViewModel(
-            snapshot.RetrievedAt.ToString("dd.MM.yyyy, HH:mm", Russian),
+            LocalTime(snapshot.RetrievedAt).ToString("dd.MM.yyyy, HH:mm", Russian),
             events.Length,
             today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             groups,

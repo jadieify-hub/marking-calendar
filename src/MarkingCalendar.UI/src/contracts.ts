@@ -159,7 +159,7 @@ export interface AppViewModel {
   readonly archives: ReadonlyArray<ArchiveViewModel>;
   readonly comparison: ComparisonViewModel | null;
   readonly history: { readonly unreadCount: number; readonly batches: ReadonlyArray<ChangeBatchViewModel> };
-  readonly status: { readonly kind: "checking" | "ready" | "updated" | "error"; readonly message: string };
+  readonly status: { readonly kind: "checking" | "ready" | "updated" | "error"; readonly message: string; readonly checkedAt?: string | null };
   readonly updateNotice: UpdateNoticeViewModel | null;
   readonly toast: {
     readonly kind: "error" | "success";

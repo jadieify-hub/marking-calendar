@@ -2,7 +2,7 @@ using MarkingCalendar.Core.Changes;
 
 namespace MarkingCalendar.App.Web;
 
-public sealed record AppStatusViewModel(string Kind, string Message);
+public sealed record AppStatusViewModel(string Kind, string Message, string? CheckedAt = null);
 public sealed record ToastViewModel(string Kind, string Message, string? Action = null, string? BatchId = null);
 public sealed record CategoryViewModel(string Id, string Label, string Color, string ColorDark);
 public sealed record ProductGroupViewModel(

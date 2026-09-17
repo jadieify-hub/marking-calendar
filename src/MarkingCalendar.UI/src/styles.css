@@ -218,7 +218,7 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .card-details::after { position: absolute; inset: 0; border-radius: inherit; content: ""; }
 .card-details:focus-visible { outline: 0; }
 .card-details:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
-.event-row { display: grid; grid-template-columns: minmax(128px, 152px) minmax(0, 1fr) auto; gap: 7px 11px; align-items: baseline; }
+.event-row { display: grid; grid-template-columns: minmax(128px, 168px) minmax(0, 1fr) auto; gap: 7px 11px; align-items: baseline; }
 .event-row .move-count-badge { grid-column: 2; }
 .event-tag { display: inline-flex; align-items: center; gap: 6px; overflow: hidden; color: var(--event-color); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .event-tag::before { width: 7px; height: 7px; flex: none; border-radius: 2px; background: currentColor; content: ""; }

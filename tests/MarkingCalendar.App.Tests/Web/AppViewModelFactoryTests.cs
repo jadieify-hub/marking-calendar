@@ -25,7 +25,7 @@ public sealed class AppViewModelFactoryTests
             "Описание",
             new Uri("https://честныйзнак.рф/source"));
         var snapshot = CalendarSnapshot.Create(
-            new DateTimeOffset(2026, 9, 2, 10, 45, 0, TimeSpan.FromHours(3)),
+            new DateTimeOffset(2026, 9, 2, 10, 45, 0, TimeSpan.FromHours(3)).ToUniversalTime(),
             new Uri("https://честныйзнак.рф/source"),
             [calendarEvent]);
         var factory = new AppViewModelFactory(new ChangeSummaryFactory(), new FixedTimeProvider());

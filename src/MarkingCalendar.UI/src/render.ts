@@ -237,7 +237,7 @@ class TimelineRenderer implements MountedApp {
             <button type="button" class="view-tab" data-view="changes" data-guide="changes">Изменения<span class="history-badge"></span></button>
           </nav>
           <div class="theme-control"><span>Тема</span><div class="theme-menu-control"><button type="button" class="theme-current" data-theme-current aria-label="Выбрать тему" aria-haspopup="listbox" aria-expanded="false"></button><div class="theme-menu" role="listbox" aria-label="Темы оформления" hidden><button type="button" role="option" data-theme="auto">Авто</button><button type="button" role="option" data-theme="light">Светлая</button><button type="button" role="option" data-theme="dark">Тёмная</button></div></div></div>
-          <button class="status" type="button" data-action="refresh"><span class="status-dot"></span><span class="status-copy"><strong></strong><small></small></span></button>
+          <button class="status" type="button" data-action="refresh"><span class="status-dot"></span><span class="status-copy"><strong></strong><small class="status-checked-at"></small><small class="status-updated-at"></small></span></button>
           <div class="help-control" data-guide="settings">
             <button class="help-button" type="button" aria-label="Справка" aria-haspopup="menu" aria-controls="help-menu" aria-expanded="false" data-action="help">?</button>
             <div class="help-menu" id="help-menu" role="menu" aria-label="Справка" hidden>
@@ -599,7 +599,9 @@ class TimelineRenderer implements MountedApp {
     const model = this.requireModel();
     const status = required(this.root.querySelector<HTMLElement>(".status"));
     required(status.querySelector<HTMLElement>("strong")).textContent = model.status.message;
-    required(status.querySelector<HTMLElement>("small")).textContent = model.updatedAt;
+    required(status.querySelector<HTMLElement>(".status-updated-at")).textContent = `Данные от ${model.updatedAt}`;
+    required(status.querySelector<HTMLElement>(".status-checked-at")).textContent = model.status.checkedAt
+      ? `Проверено ${model.status.checkedAt}` : "Ещё не проверено";
     required(status.querySelector<HTMLElement>(".status-dot")).dataset.kind = model.status.kind;
     required(this.root.querySelector<HTMLElement>(".history-badge")).textContent = model.history.unreadCount > 0 ? String(model.history.unreadCount) : "";
     this.renderThemePicker();
@@ -756,7 +758,6 @@ class TimelineRenderer implements MountedApp {
     const exportButton = required(this.root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]'));
     exportButton.textContent = `Экспортировать · ${this.visibleEventIds.length}`;
     exportButton.disabled = this.visibleEventIds.length === 0;
-    required(this.root.querySelector<HTMLElement>(".status-copy small")).textContent = `${statusText} · ${model.updatedAt}`;
     const activeParts = [
       this.state.groupMode === "mine" ? selectedGroupsLabel(selected.size)
         : model.groups.every(group => selected.has(group.key)) ? "все группы"
