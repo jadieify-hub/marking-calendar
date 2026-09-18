@@ -12,7 +12,6 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-PILOT_IDS = ("homeware", "cosmetics", "grocery", "children")
 CHZ_HOST = "xn--80ajghhoc2aj1c8b.xn--p1ai"
 HEADINGS = {"homeware": "товаров для дома", "cosmetics": "Виды косметики", "grocery": "Виды бакалейной", "children": "виды товаров для детей"}
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
@@ -77,33 +76,72 @@ def text(node):
 
 def codes(value):
     # Only a glossary lookup. Raw text, including exclusions, stays authoritative.
-    return list(dict.fromkeys(re.sub(r"\s", "", m.group()) for m in re.finditer(
-        r"(?<![\d.])\d{4}(?:[ \t]\d{1,3})*(?![\d.])", value)))
+    found = (re.sub(r"\s", "", m.group()) for m in re.finditer(
+        r"(?<![\d.])\d{4,10}(?:[ \t]\d{1,6})*(?![\d.])", value))
+    return list(dict.fromkeys(code for code in found if len(code) <= 10))
 
 
-def parse_group(group_id, html, meanings):
-    if group_id not in PILOT_IDS:
-        raise ValueError("Unsupported product group")
-    page = Page(html)
-    scope = next((n for n in page.root.nodes() if n.tag == "section" and n.has_class("section-content")), None)
-    if scope is None:
-        raise ValueError("Товарный раздел отсутствует")
-    heading = next((text(n) for n in scope.nodes() if n.has_class("section-tab-content__item-h2")
-                    and HEADINGS[group_id].casefold() in text(n).casefold()), None)
-    tables = [n for n in scope.nodes() if n.has_class("milk-marks-table")]
-    if not heading or len(tables) != 1:
-        raise ValueError("Не распознан заголовок или таблица перечня")
-    table = next((n for n in tables[0].nodes() if n.tag == "table"), None)
-    if table is None:
-        raise ValueError("Нет товарной таблицы")
-    rows, section, spans = [], "", {}
-    columns = 2 if group_id == "homeware" else 3
-    for tr in (n for n in table.nodes() if n.tag == "tr"):
-        cells = [n for n in tr.children if isinstance(n, Node) and n.tag in ("td", "th")]
-        if not cells:
+def matching(node, class_name):
+    return [n for n in node.nodes() if n.has_class(class_name)]
+
+
+def first_text(node, class_name):
+    found = matching(node, class_name)
+    return text(found[0]) if found else ""
+
+
+def field_kind(label):
+    normalized = re.sub(r"[\s-]", "", label).casefold()
+    if "наименование" in normalized or "определение" in normalized or normalized == "видпродукции":
+        if not normalized.startswith("код") and not normalized.startswith("номер"):
+            return "sourceName"
+    if "тнвэд" in normalized:
+        return "tnvedText"
+    if "окпд" in normalized:
+        return "okpd2Text"
+    return "conditions"
+
+
+def make_row(values, section, meanings):
+    row = {"section": section, "sourceName": "", "tnvedText": "", "okpd2Text": "", "conditions": "", **values}
+    if not row["sourceName"] or not (codes(row["tnvedText"]) or re.search(r"\d{2}\.\d{2}", row["okpd2Text"])):
+        raise ValueError("Изменилась структура товара: нет наименования или кодов")
+    row["meanings"] = [meanings[c] for c in codes(row["tnvedText"]) if c in meanings]
+    return row
+
+
+def table_rows(table):
+    # Several official pages put header cells directly into tbody/thead.
+    for node in table.nodes():
+        if node.tag in ("table", "thead", "tbody", "tr"):
+            cells = [n for n in node.children if isinstance(n, Node) and n.tag in ("td", "th")]
+            if cells:
+                yield cells
+
+
+def parse_table(table, heading, section, meanings):
+    rows, notes, spans, headers = [], [], {}, []
+    for cells in table_rows(table):
+        raw = [text(c) for c in cells]
+        if raw[0] and not any(raw[1:]) and re.match(r"(?:[IVX\d]+\s*этап|Этап|С \d|Исключения|Примечани)", raw[0], re.I):
+            if re.match(r"Исключения|Примечани", raw[0], re.I):
+                notes.append(raw[0])
+            else:
+                section = raw[0]
             continue
-        if len(cells) == 1 and int(cells[0].attrs.get("colspan", "1")) == columns:
-            section = text(cells[0])
+        # A colspan heading is a stage/category or a note, never a product.
+        if len(cells) == 1 and int(cells[0].attrs.get("colspan", "1")) > 1:
+            if re.match(r"(?:Исключения|Примечани)", raw[0], re.I):
+                notes.append(raw[0])
+            else:
+                section = raw[0]
+            continue
+        if len(cells) == 1 and "Перечень ТН ВЭД" in raw[0]:
+            heading = raw[0].split("Перечень ТН ВЭД")[0].strip()
+            headers = ["ТН ВЭД"]
+            continue
+        if any(field_kind(v) in ("tnvedText", "okpd2Text") for v in raw) and not any(codes(v) for v in raw):
+            headers = raw
             continue
         expanded, pending = [], dict(spans)
         spans.clear()
@@ -122,32 +160,162 @@ def parse_group(group_id, html, meanings):
                 if height > 1:
                     spans[col] = (value, height - 1)
                 col += 1
-        while col in pending:
-            value, remaining = pending.pop(col)
-            expanded.append(value)
-            if remaining > 1:
-                spans[col] = (value, remaining - 1)
+        while pending:
+            if col in pending:
+                value, remaining = pending.pop(col)
+                expanded.append(value)
+                if remaining > 1:
+                    spans[col] = (value, remaining - 1)
+            else:
+                expanded.append("")
             col += 1
-        if any("Код ТН" in cell for cell in expanded):
-            continue
-        if group_id == "cosmetics" and len(expanded) == columns and "этап" in expanded[0] and not any(expanded[1:]):
+        # The veterinary source includes empty cells under a spanning name.
+        while headers and len(expanded) > len(headers) and not expanded[-1]:
+            expanded.pop()
+        if not headers:
+            if len(expanded) == 2 and codes(expanded[0]):
+                headers = ["ТН ВЭД", "Наименование"]
+            else:
+                raise ValueError("Не распознаны заголовки товарной таблицы")
+        if len(expanded) != len(headers) or pending:
+            raise ValueError("Изменилась структура товарной строки")
+        if expanded[0] and not any(expanded[1:]) and not codes(expanded[0]):
             section = expanded[0]
             continue
-        if len(expanded) != columns or not codes(expanded[0]) or not expanded[-1]:
-            raise ValueError("Изменилась структура товарной строки")
-        rows.append({"section": section, "sourceName": expanded[-1], "tnvedText": expanded[0],
-                     "okpd2Text": expanded[1] if columns == 3 else "", "conditions": "",
-                     "meanings": [meanings[c] for c in codes(expanded[0]) if c in meanings]})
+        values = {}
+        for label, value in zip(headers, expanded):
+            kind = field_kind(label)
+            if kind == "conditions" and not value:
+                raise ValueError("Исчез дополнительный классификатор: " + label)
+            if value:
+                if kind == "conditions":
+                    value = label + ": " + value
+                values[kind] = "\n".join(filter(None, (values.get(kind), value)))
+        if not any(field_kind(label) == "sourceName" for label in headers):
+            values["sourceName"] = heading
+            if len(headers) > 1:
+                values["conditions"] = "Источник публикует перечень кодов без отдельных наименований товаров"
+        rows.append(make_row(values, section, meanings))
     if not rows:
         raise ValueError("Товарная таблица пуста")
-    notes_scope = scope if group_id == "children" else tables[0]
-    notes = [text(n) for n in notes_scope.nodes() if n.has_class("milk-marks-table__text")]
+    return rows, notes
+
+
+def parse_card(card, section, meanings):
+    name = first_text(card, "marking-retractable-block__name")
+    if not name:
+        raise ValueError("Исчезло наименование карточки товара")
+    date = first_text(card, "marking-retractable-block__date")
+    stages = [line for line in name.splitlines() if re.match(r"[IVX\d]+\s*этап", line, re.I)]
+    if stages:
+        section = "\n".join(stages)
+    values = {"sourceName": name}
+    fields = matching(card, "marking-retractable-block__content-row")
+    if not fields:
+        raise ValueError("Не найдены поля карточки товара")
+    for field in fields:
+        label = first_text(field, "marking-retractable-block__content-title")
+        value = first_text(field, "marking-retractable-block__content-code")
+        kind = field_kind(label)
+        if kind == "sourceName":
+            details = "\n".join(text(n) for n in matching(field, "product-list__item"))
+            if not details:
+                details = text(field).removeprefix(label).strip()
+            normalized_name = re.sub(r"\s+", " ", name).casefold().strip(".;")
+            normalized_details = re.sub(r"\s+", " ", details).casefold().strip(".;")
+            if details and normalized_details.startswith(normalized_name):
+                values["sourceName"] = details
+            elif details and normalized_details != normalized_name:
+                values["sourceName"] += "\n" + details
+        elif kind in ("tnvedText", "okpd2Text"):
+            if not value:
+                raise ValueError("В карточке исчезли коды: " + label)
+            # The water source puts TN VED in the label and OKPD2 in its value.
+            if codes(label) and re.fullmatch(r"\d{2}(?:\.\d{2,3})+", value):
+                values["tnvedText"] = ", ".join(codes(label))
+                values["okpd2Text"] = value
+            else:
+                values[kind] = value
+        else:
+            if not value:
+                raise ValueError("Исчез дополнительный классификатор: " + label)
+            values["conditions"] = "\n".join(filter(None, (values.get("conditions"), text(field))))
+    return make_row(values, "\n".join(filter(None, (section, date))), meanings)
+
+
+def source_notes(scope):
+    # Keep the prose around tables/cards, including exclusions and footnotes.
+    skip_classes = ("marking-retractable-block", "check-mark-banner", "qa-banner")
+    def clean(node):
+        if isinstance(node, str):
+            return node
+        if node.tag in ("table", "script", "style", "svg") or any(node.has_class(c) for c in skip_classes):
+            return ""
+        if node.tag == "a" and node.has_class("action-btn"):
+            return ""
+        copied = Node(node.tag)
+        copied.children = [clean(child) for child in node.children]
+        return copied
+    cleaned = clean(scope)
+    value = text(cleaned)
+    blocks = sum(n.tag in ("p", "ul", "ol", "h1", "h2", "h3") and bool(text(n)) for n in cleaned.nodes())
+    return ([value] if value else []), blocks
+
+
+def parse_group(group_id, html, meanings):
+    contracts = json.loads((ROOT / "assets/products/sources.json").read_text(encoding="utf-8"))["groups"]
+    contract = contracts.get(group_id)
+    if not contract or contract.get("unavailable"):
+        raise ValueError("Товарный источник недоступен или не проверен")
+    page = Page(html)
+    scope = next((n for n in page.root.nodes() if n.has_class("section-content")), None)
+    if scope is None:
+        raise ValueError("Товарный раздел отсутствует")
+    headings = matching(scope, "section-tab-content__item-h2")
+    heading = text(headings[0]) if headings else first_text(page.root, "main-banner__title")
+    if not heading:
+        raise ValueError("Не найден заголовок товарного источника")
+    if group_id in HEADINGS and HEADINGS[group_id].casefold() not in heading.casefold():
+        raise ValueError("Не распознан заголовок перечня")
+    rows, table_notes, section = [], [], ""
+    tables = [n for n in scope.nodes() if n.tag == "table"]
+    cards = matching(scope, "marking-retractable-block")
+    containers = tables if contract["format"] == "table" else cards
+    if len(containers) < contract["minContainers"]:
+        raise ValueError("Исчезла таблица или карточка товарного перечня")
+    if len(matching(scope, "milk-marks-table__text")) < contract.get("minNoteBlocks", 0):
+        raise ValueError("Исчезли примечания или этапы товарного перечня")
+    for node in scope.nodes():
+        if node in containers:
+            if node.tag == "table":
+                parsed, notes = parse_table(node, heading, section, meanings)
+                rows.extend(parsed)
+                table_notes.extend(notes)
+            else:
+                rows.append(parse_card(node, section, meanings))
+        elif any(node.has_class(c) for c in ("milk-marks-table__text", "section-tab-content__item-h2", "text-par-p3")):
+            value = text(node)
+            if re.match(r"[IVX\d]+\s*этап|этап|с \d{1,2} [а-я]+ 20|с \d{2}\.\d{2}\.20", value, re.I):
+                section = value
+    if len(rows) < contract.get("minRows", 1):
+        raise ValueError("Исчезли строки товарного перечня")
+    for field in ("tnvedText", "okpd2Text"):
+        if sum(bool(row[field]) for row in rows) < contract.get(field, 0):
+            raise ValueError("Исчезла часть кодов " + field)
+    if len(matching(scope, "marking-retractable-block__content-row")) < contract.get("minCardFields", 0):
+        raise ValueError("Исчезли поля карточек товарного перечня")
+    notes, prose_blocks = source_notes(scope)
+    if prose_blocks < contract.get("minProseBlocks", 0):
+        raise ValueError("Исчез текстовый блок условий товарного перечня")
+    notes += table_notes
+    if not headings:
+        notes.insert(0, heading)
     conditions = "\n\n".join(notes)
     examples, category = [], ""
     for node in scope.nodes():
         if node.has_class("marking-retractable-block__name"):
             category = text(node)
-        elif node.has_class("product-list__item"):
+        elif node.has_class("product-list__item") and contract["format"] == "table":
             example = f"{category}: {text(node)}" if category else text(node)
             if example not in examples:
                 examples.append(example)
@@ -194,11 +362,11 @@ def check(data_dir, dry_run=False):
     metadata = {urlsplit(g["link"]).path.rstrip("/").split("/")[-1]: g for g in group_map["groups"]}
     now = datetime.now(timezone.utc).isoformat()
     changed, unchanged, failed, unknown, result = [], [], [], set(), []
-    for group_id in PILOT_IDS:
+    for group_id in metadata:
         source_html = ""
         try:
             meta = metadata[group_id]
-            url = meta.get("goodsUrl") or meta["link"].rstrip("/") + ("/marking_goods/" if group_id in ("homeware", "children") else "/mark_goods/")
+            url = meta.get("goodsUrl") or meta["link"]
             if url.startswith("/"):
                 url = "https://" + CHZ_HOST + url
             source_html = fetch_page(url)
@@ -229,7 +397,7 @@ def check(data_dir, dry_run=False):
     print("PRODUCTS_UNCHANGED=" + ",".join(unchanged))
     print("PRODUCTS_FAILED=" + ",".join(failed))
     print("UNKNOWN_CODES=" + ",".join(sorted(unknown)))
-    if not dry_run and len(result) == len(PILOT_IDS):
+    if not dry_run and result:
         catalog = {"schemaVersion": 1, "revision": digest([(g["id"], g["revision"]) for g in result]), "groups": result}
         directory.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".json.tmp")

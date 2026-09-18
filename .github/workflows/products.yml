@@ -16,7 +16,8 @@ permissions:
 jobs:
   publish:
     runs-on: [self-hosted, linux, x64, marking-calendar]
-    timeout-minutes: 10
+    # 50 sources, each with a 30-second network timeout; leave time to report failures.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
@@ -65,3 +66,10 @@ jobs:
       - name: Report source failure
         if: steps.check.outputs.exit_code != '0'
         run: exit 1
+
+      - name: Notify maintainer on failure
+        if: always() && (failure() || steps.check.outputs.exit_code != '0')
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 build/products_alert.py

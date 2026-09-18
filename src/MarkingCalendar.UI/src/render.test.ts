@@ -787,7 +787,7 @@ describe("renderApp", () => {
     expect(root.querySelector("[data-goods-event-id]")).toBeNull();
   });
 
-  it("hides the marked goods action for a group without that page", () => {
+  it("explains an unavailable product list and hides its missing page action", () => {
     const root = document.createElement("div");
     const event = {
       ...model.events[0],
@@ -805,6 +805,7 @@ describe("renderApp", () => {
 
     expect(root.querySelector("[data-source-event-id]")).not.toBeNull();
     expect(root.querySelector("[data-goods-event-id]")).toBeNull();
+    expect(root.querySelector(".event-products")?.textContent).toContain("Перечень этой группы пока недоступен");
   });
 
   it("shows recent-change badges without adding a separate calendar legend", () => {

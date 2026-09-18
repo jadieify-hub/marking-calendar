@@ -1543,12 +1543,11 @@ class TimelineRenderer implements MountedApp {
       heading.textContent = "Какие товары входят";
       const names = document.createElement("ul");
       names.className = "event-product-names";
-      for (const row of catalogGroup.rows) {
-        for (const name of row.sourceName.split(/;\s*/).filter(Boolean)) {
-          const item = document.createElement("li");
-          item.textContent = name;
-          names.append(item);
-        }
+      const uniqueNames = new Set(catalogGroup.rows.flatMap((row) => row.sourceName.split(/;\s*/).filter(Boolean)));
+      for (const name of uniqueNames) {
+        const item = document.createElement("li");
+        item.textContent = name;
+        names.append(item);
       }
       included.append(heading, names);
       if (catalogGroup.conditions) included.append(productText("Условия и исключения", catalogGroup.conditions));
@@ -1566,6 +1565,10 @@ class TimelineRenderer implements MountedApp {
       checked.textContent = `Источник проверен: ${formatLocalDateTime(catalogGroup.checkedAt)}`;
       included.append(checked);
       dialog.append(included);
+    } else if (productGroup) {
+      const unavailable = productText("Какие товары входят", "Перечень этой группы пока недоступен в справочнике.");
+      unavailable.className = "event-products";
+      dialog.append(unavailable);
     }
     const controller = this.openOverlay(dialog, eventOpener, close, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);

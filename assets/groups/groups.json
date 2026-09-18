@@ -49,7 +49,8 @@
       "link": "/business/projects/autoparts/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/autoparts/marking_goods/"
     },
     {
       "name": "Антисептики и дезинфицирующие средства",
@@ -57,7 +58,8 @@
       "sectors": [
         "pharma",
         "beauty"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/antiseptic/mark_goods/"
     },
     {
       "name": "БАД",
@@ -65,7 +67,8 @@
       "sectors": [
         "food",
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/dietarysup/mark_goods/"
     },
     {
       "name": "Бакалея",
@@ -81,7 +84,8 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/nonalcoholic_beer/mark_goods/"
     },
     {
       "name": "Безалкогольные напитки",
@@ -89,14 +93,16 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/beverages/mark_goods/"
     },
     {
       "name": "Велосипеды",
       "link": "/business/projects/bicycles/",
       "sectors": [
         "home"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/bicycles/marking_goods/"
     },
     {
       "name": "Ветеринарные препараты",
@@ -104,7 +110,8 @@
       "sectors": [
         "pharma",
         "pets"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/veterinary_products/mark_goods/"
     },
     {
       "name": "Детские игрушки",
@@ -120,14 +127,16 @@
       "sectors": [
         "food",
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/babyfood/marking_goods/"
     },
     {
       "name": "Духи и туалетная вода",
       "link": "/business/projects/perfumes/",
       "sectors": [
         "beauty"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/perfumes/marking_goods/"
     },
     {
       "name": "Кабельная продукция",
@@ -135,14 +144,16 @@
       "sectors": [
         "electronics",
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/cables/mark_goods/"
     },
     {
       "name": "Консервированные продукты",
       "link": "/business/projects/canned_food/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/canned_food/mark_goods/"
     },
     {
       "name": "Корма для животных",
@@ -150,7 +161,8 @@
       "sectors": [
         "food",
         "pets"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/pet_food/mark_goods/"
     },
     {
       "name": "Косметика, бытовая химия и товары личной гигиены",
@@ -167,42 +179,48 @@
       "link": "/business/projects/wheelchairs/",
       "sectors": [
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/wheelchairs/mark_goods/"
     },
     {
       "name": "Лекарства",
       "link": "/business/projects/medicines/",
       "sectors": [
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/medicines/marking_goods/"
     },
     {
       "name": "Макароны, крупы, мёд",
       "link": "/business/projects/groceries/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/groceries/marking_goods/"
     },
     {
       "name": "Медицинские изделия",
       "link": "/business/projects/medical_devices/",
       "sectors": [
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/medical_devices/marking_goods/"
     },
     {
       "name": "Медицинские изделия 2.0",
       "link": "/business/projects/medproducts/",
       "sectors": [
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/medproducts/mark_goods/"
     },
     {
       "name": "Меховые изделия",
       "link": "/business/projects/fur/",
       "sectors": [
         "apparel"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/fur/marking_goods/"
     },
     {
       "name": "Молочная продукция",
@@ -210,42 +228,48 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/dairy/marking_goods/"
     },
     {
       "name": "Морепродукты (икра)",
       "link": "/business/projects/caviar/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/caviar/marking/"
     },
     {
       "name": "Моторные масла",
       "link": "/business/projects/autofluids/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/autofluids/mark_goods/"
     },
     {
       "name": "Мясные изделия",
       "link": "/business/projects/meat/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/meat/marking_goods/"
     },
     {
       "name": "Обувь",
       "link": "/business/projects/footwear/",
       "sectors": [
         "apparel"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/footwear/marking_goods/"
     },
     {
       "name": "Оптоволокно",
       "link": "/business/projects/optical_fiber/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/optical_fiber/mark_goods/"
     },
     {
       "name": "Отопительные приборы",
@@ -253,7 +277,8 @@
       "sectors": [
         "home",
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/heating_devices/mark_goods/"
     },
     {
       "name": "Печатная продукция (завершен)",
@@ -261,7 +286,8 @@
       "sectors": [
         "home"
       ],
-      "status": "completed"
+      "status": "completed",
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/books/mark_goods/"
     },
     {
       "name": "Пиво и слабоалкогольные напитки",
@@ -269,56 +295,64 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/beer/marking_goods_beer/"
     },
     {
       "name": "Пиротехнические изделия",
       "link": "/business/projects/pyrotechnics/",
       "sectors": [
         "home"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/pyrotechnics/mark_goods/"
     },
     {
       "name": "Полимерные трубы",
       "link": "/business/projects/polymerpipes/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/polymerpipes/mark_goods/"
     },
     {
       "name": "Полуфабрикаты и замороженная продукция",
       "link": "/business/projects/semi_frozen/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/semi_frozen/marking_goods/"
     },
     {
       "name": "Радиоэлектроника",
       "link": "/business/projects/radioelectronics/",
       "sectors": [
         "electronics"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/radioelectronics/marking_goods/"
     },
     {
       "name": "Радиоэлектроника (Электронные сигареты)",
       "link": "/business/projects/electronic_cigarettes/",
       "sectors": [
         "tobacco"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/electronic_cigarettes/mark_goods/"
     },
     {
       "name": "Растворимые напитки",
       "link": "/business/projects/brdrinks/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/brdrinks/mark_goods/"
     },
     {
       "name": "Растительные масла",
       "link": "/business/projects/oil/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/oil/marking_goods/"
     },
     {
       "name": "Слабый алкоголь",
@@ -326,14 +360,16 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/low_alcohol/mark_goods/"
     },
     {
       "name": "Сладости",
       "link": "/business/projects/sweets/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/sweets/mark_goods/"
     },
     {
       "name": "Спортивное питание",
@@ -341,7 +377,8 @@
       "sectors": [
         "food",
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/sportpit/marking_goods/"
     },
     {
       "name": "Средства гигиены",
@@ -358,7 +395,8 @@
       "link": "/business/projects/cement/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/cement/marking_goods/"
     },
     {
       "name": "Табак",
@@ -366,14 +404,16 @@
       "sectors": [
         "food",
         "tobacco"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/tobacco/marking_goods/"
     },
     {
       "name": "Технические средства реабилитации",
       "link": "/business/projects/technical_rehabilitation/",
       "sectors": [
         "pharma"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/technical_rehabilitation/marking_goods/"
     },
     {
       "name": "Товары для дома и интерьера",
@@ -388,14 +428,16 @@
       "link": "/business/projects/light_industry/",
       "sectors": [
         "apparel"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/light_industry/marking_goods/"
     },
     {
       "name": "Удобрения",
       "link": "/business/projects/fertilizers/",
       "sectors": [
         "pets"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/fertilizers/mark_goods/"
     },
     {
       "name": "Упакованная вода",
@@ -403,21 +445,24 @@
       "sectors": [
         "food",
         "horeca"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/water/marking_goods/"
     },
     {
       "name": "Фотоаппараты и лампы-вспышки",
       "link": "/business/projects/photo_cameras_and_flashbulbs/",
       "sectors": [
         "electronics"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/photo_cameras_and_flashbulbs/marking_goods/"
     },
     {
       "name": "Шины и покрышки",
       "link": "/business/projects/tyres/",
       "sectors": [
         "auto"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/tyres/marking_goods/"
     }
   ]
 }

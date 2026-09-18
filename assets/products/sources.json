@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "groups": {
+    "antiseptic": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 2,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "autofluids": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 7,
+      "tnvedText": 7,
+      "okpd2Text": 7,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "autoparts": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 2,
+      "minRows": 7,
+      "tnvedText": 7,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "babyfood": {
+      "format": "table",
+      "minContainers": 2,
+      "minNoteBlocks": 0,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 0
+    },
+    "beer": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 3,
+      "tnvedText": 3,
+      "okpd2Text": 3,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "beverages": {
+      "format": "table",
+      "minContainers": 4,
+      "minNoteBlocks": 5,
+      "minRows": 4,
+      "tnvedText": 4,
+      "okpd2Text": 4,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "bicycles": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "books": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "brdrinks": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 4,
+      "tnvedText": 4,
+      "okpd2Text": 4,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "cables": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 2,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "canned_food": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 2,
+      "minCardFields": 0,
+      "minProseBlocks": 4
+    },
+    "caviar": {
+      "format": "cards",
+      "minContainers": 8,
+      "minNoteBlocks": 0,
+      "minRows": 8,
+      "tnvedText": 6,
+      "okpd2Text": 2,
+      "minCardFields": 16,
+      "minProseBlocks": 2
+    },
+    "cement": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 5,
+      "tnvedText": 5,
+      "okpd2Text": 5,
+      "minCardFields": 0,
+      "minProseBlocks": 0
+    },
+    "chemistry": {
+      "unavailable": true
+    },
+    "children": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 2,
+      "minRows": 4,
+      "tnvedText": 4,
+      "okpd2Text": 4,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "cosmetics": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 5,
+      "tnvedText": 5,
+      "okpd2Text": 5,
+      "minCardFields": 10,
+      "minProseBlocks": 4
+    },
+    "dairy": {
+      "format": "cards",
+      "minContainers": 4,
+      "minNoteBlocks": 0,
+      "minRows": 4,
+      "tnvedText": 4,
+      "okpd2Text": 4,
+      "minCardFields": 12,
+      "minProseBlocks": 10
+    },
+    "dietarysup": {
+      "format": "cards",
+      "minContainers": 3,
+      "minNoteBlocks": 0,
+      "minRows": 3,
+      "tnvedText": 3,
+      "okpd2Text": 3,
+      "minCardFields": 6,
+      "minProseBlocks": 1
+    },
+    "electronic_cigarettes": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 21,
+      "tnvedText": 21,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "fertilizers": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "footwear": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 3,
+      "minProseBlocks": 3
+    },
+    "fur": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 7,
+      "tnvedText": 7,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 0
+    },
+    "groceries": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 41,
+      "tnvedText": 41,
+      "okpd2Text": 41,
+      "minCardFields": 0,
+      "minProseBlocks": 0
+    },
+    "grocery": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 2,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "heating_devices": {
+      "format": "cards",
+      "minContainers": 3,
+      "minNoteBlocks": 1,
+      "minRows": 3,
+      "tnvedText": 3,
+      "okpd2Text": 0,
+      "minCardFields": 6,
+      "minProseBlocks": 1
+    },
+    "homeware": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 3,
+      "tnvedText": 3,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 0
+    },
+    "light_industry": {
+      "format": "cards",
+      "minContainers": 38,
+      "minNoteBlocks": 0,
+      "minRows": 38,
+      "tnvedText": 38,
+      "okpd2Text": 38,
+      "minCardFields": 114,
+      "minProseBlocks": 6
+    },
+    "low_alcohol": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "meat": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 37,
+      "tnvedText": 37,
+      "okpd2Text": 37,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "medical_devices": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 15,
+      "tnvedText": 15,
+      "okpd2Text": 15,
+      "minCardFields": 0,
+      "minProseBlocks": 3
+    },
+    "medicines": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 2,
+      "minProseBlocks": 2
+    },
+    "medproducts": {
+      "format": "cards",
+      "minContainers": 5,
+      "minNoteBlocks": 4,
+      "minRows": 5,
+      "tnvedText": 5,
+      "okpd2Text": 5,
+      "minCardFields": 20,
+      "minProseBlocks": 1
+    },
+    "nonalcoholic_beer": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "oil": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "optical_fiber": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 2,
+      "tnvedText": 2,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "perfumes": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 2,
+      "minProseBlocks": 2
+    },
+    "pet_food": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 20,
+      "tnvedText": 0,
+      "okpd2Text": 20,
+      "minCardFields": 0,
+      "minProseBlocks": 2
+    },
+    "photo_cameras_and_flashbulbs": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 2,
+      "minProseBlocks": 2
+    },
+    "polymerpipes": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 11,
+      "tnvedText": 11,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "pyrotechnics": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 0,
+      "minCardFields": 2,
+      "minProseBlocks": 2
+    },
+    "radioelectronics": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 20,
+      "tnvedText": 20,
+      "okpd2Text": 20,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "semi_frozen": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 0,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "sportpit": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    },
+    "sweets": {
+      "format": "table",
+      "minContainers": 3,
+      "minNoteBlocks": 5,
+      "minRows": 12,
+      "tnvedText": 12,
+      "okpd2Text": 12,
+      "minCardFields": 0,
+      "minProseBlocks": 6
+    },
+    "technical_rehabilitation": {
+      "format": "cards",
+      "minContainers": 6,
+      "minNoteBlocks": 2,
+      "minRows": 6,
+      "tnvedText": 6,
+      "okpd2Text": 6,
+      "minCardFields": 30,
+      "minProseBlocks": 3
+    },
+    "tobacco": {
+      "format": "cards",
+      "minContainers": 5,
+      "minNoteBlocks": 0,
+      "minRows": 5,
+      "tnvedText": 5,
+      "okpd2Text": 5,
+      "minCardFields": 15,
+      "minProseBlocks": 12
+    },
+    "tyres": {
+      "format": "cards",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 1,
+      "tnvedText": 1,
+      "okpd2Text": 1,
+      "minCardFields": 3,
+      "minProseBlocks": 2
+    },
+    "veterinary_products": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 1,
+      "minRows": 17,
+      "tnvedText": 17,
+      "okpd2Text": 11,
+      "minCardFields": 0,
+      "minProseBlocks": 3
+    },
+    "water": {
+      "format": "cards",
+      "minContainers": 3,
+      "minNoteBlocks": 0,
+      "minRows": 3,
+      "tnvedText": 3,
+      "okpd2Text": 3,
+      "minCardFields": 7,
+      "minProseBlocks": 6
+    },
+    "wheelchairs": {
+      "format": "table",
+      "minContainers": 1,
+      "minNoteBlocks": 0,
+      "minRows": 5,
+      "tnvedText": 2,
+      "okpd2Text": 3,
+      "minCardFields": 0,
+      "minProseBlocks": 1
+    }
+  }
+}

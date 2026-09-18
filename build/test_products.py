@@ -1,6 +1,7 @@
 """Offline checks for the supported actual ЧЗ layouts and safe publication."""
 import json
 import io
+import re
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 import tempfile
@@ -17,13 +18,76 @@ def html(group):
 
 
 def fetch(url):
-    return html(url.split("/projects/")[1].split("/")[0])
+    group = url.split("/projects/")[1].split("/")[0]
+    if group == "chemistry":
+        raise OSError("HTTP 404: source unavailable")
+    return html(group)
 
 
 class ProductTests(unittest.TestCase):
     def setUp(self):
         self.enterContext(redirect_stdout(io.StringIO()))
         self.enterContext(redirect_stderr(io.StringIO()))
+
+    def test_all_available_source_formats_keep_names_codes_and_notes(self):
+        for fixture in FIXTURES.glob("*.html"):
+            with self.subTest(group=fixture.stem):
+                parsed = products.parse_group(fixture.stem, html(fixture.stem), {})
+                self.assertTrue(parsed["sourceHeading"])
+                self.assertTrue(parsed["rows"])
+                self.assertTrue(all(r["sourceName"] and (r["tnvedText"] or r["okpd2Text"]) for r in parsed["rows"]))
+        beer = products.parse_group("beer", html("beer"), {})
+        self.assertIn("пиво крепостью", beer["rows"][0]["sourceName"])
+        devices = products.parse_group("medical_devices", html("medical_devices"), {})
+        self.assertIn("131980", devices["rows"][0]["conditions"])
+        water = products.parse_group("water", html("water"), {})
+        self.assertEqual("2201", water["rows"][-1]["tnvedText"])
+        self.assertEqual("10.86.10.310", water["rows"][-1]["okpd2Text"])
+        self.assertIn("Лед, снег", water["conditions"])
+        dairy = products.parse_group("dairy", html("dairy"), {})
+        self.assertEqual(1, dairy["rows"][1]["sourceName"].casefold().count("мороженое и прочие"))
+        self.assertIn("за исключением", dairy["rows"][1]["sourceName"])
+        medicines = products.parse_group("medicines", html("medicines"), {})
+        self.assertIn("3002150000", products.codes(medicines["rows"][0]["tnvedText"]))
+        self.assertIn("не относится к ветеринарным", medicines["conditions"])
+        beverages = products.parse_group("beverages", html("beverages"), {})
+        self.assertEqual(4, len(beverages["rows"]))
+        self.assertIn("ПЭТ", beverages["rows"][0]["section"])
+        self.assertIn("без отдельных наименований", beverages["rows"][0]["conditions"])
+        veterinary = products.parse_group("veterinary_products", html("veterinary_products"), {})
+        self.assertEqual(17, len(veterinary["rows"]))
+        self.assertTrue(all(r["sourceName"] == veterinary["rows"][0]["sourceName"] for r in veterinary["rows"]))
+        wheelchairs = products.parse_group("wheelchairs", html("wheelchairs"), {})
+        self.assertTrue(wheelchairs["rows"][0]["tnvedText"])
+        self.assertTrue(wheelchairs["rows"][-1]["okpd2Text"])
+
+    def test_code_lookup_preserves_real_spacing_and_rejects_long_numbers(self):
+        self.assertEqual(["2202991100", "293629000", "1604310000"],
+                         products.codes("2202 99110 0, 2936 29 000; 1604310000; 123456789012"))
+
+    def test_missing_card_codes_or_source_section_is_not_partial_success(self):
+        for group, marker in (("water", "marking-retractable-block__content-code"),
+                              ("beverages", "milk-marks-table__text")):
+            with self.subTest(group=group), self.assertRaises(ValueError):
+                products.parse_group(group, html(group).replace(marker, "broken"), {})
+        # Removing a complete code field still leaves a plausible card with its other classifier.
+        broken = html("medicines").replace("marking-retractable-block__content-row", "broken", 1)
+        with self.assertRaises(ValueError):
+            products.parse_group("medicines", broken, {})
+
+    def test_missing_names_classifiers_and_critical_note_blocks_are_rejected(self):
+        original = html("medical_devices")
+        cells = list(re.finditer(r"<td\b[^>]*>.*?</td>", original, re.S))
+        for index in (6, 7):
+            broken = original[:cells[index].start()] + "<td></td>" + original[cells[index].end():]
+            with self.subTest(column=index), self.assertRaises(ValueError):
+                products.parse_group("medical_devices", broken, {})
+        for group, tag, marker in (("caviar", "p", "Обращаем"), ("water", "ul", "Лед"),
+                                    ("medicines", "h2", "ветеринарным"), ("dietarysup", "h1", "свидетельство")):
+            original = html(group)
+            block = next(block for block in re.findall(fr"<{tag}\b[^>]*>.*?</{tag}>", original, re.S) if marker in block)
+            with self.subTest(group=group), self.assertRaises(ValueError):
+                products.parse_group(group, original.replace(block, ""), {})
 
     def test_actual_pages_keep_codes_stages_and_exceptions(self):
         home = products.parse_group("homeware", html("homeware"), {})
@@ -73,9 +137,12 @@ class ProductTests(unittest.TestCase):
 
     def test_failed_group_is_retained_while_another_group_updates(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
-            self.assertEqual(0, products.check(directory))
+            self.assertEqual(2, products.check(directory))  # Retired chemistry URL returns 404.
             path = Path(directory) / "products.json"
             old = json.loads(path.read_text(encoding="utf-8"))
+            expected = {g["link"].strip("/").split("/")[-1]
+                        for g in json.loads((products.ROOT / "assets/groups/groups.json").read_text(encoding="utf-8-sig"))["groups"]}
+            self.assertEqual(expected - {"chemistry"}, {g["id"] for g in old["groups"]})
             def changed(url):
                 if "/cosmetics/" in url:
                     raise OSError("source unavailable")
@@ -102,12 +169,22 @@ class ProductTests(unittest.TestCase):
             changed = json.loads(path.read_text(encoding="utf-8"))
             self.assertNotEqual(old["revision"], changed["revision"])
 
-    def test_dry_run_and_incomplete_first_fetch_do_not_publish(self):
+    def test_dry_run_writes_nothing_but_partial_first_fetch_publishes_valid_groups(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
-            self.assertEqual(0, products.check(directory, dry_run=True))
+            self.assertEqual(2, products.check(directory, dry_run=True))
             self.assertEqual([], list(Path(directory).iterdir()))
             with patch.object(products, "fetch_page", side_effect=lambda url: "<html></html>" if "/homeware/" in url else fetch(url)):
                 self.assertEqual(2, products.check(directory))
+            path = Path(directory) / "products.json"
+            first = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(48, len(first["groups"]))
+            self.assertNotIn("homeware", {g["id"] for g in first["groups"]})
+            self.assertEqual(2, products.check(directory))
+            self.assertEqual(49, len(json.loads(path.read_text(encoding="utf-8"))["groups"]))
+
+    def test_total_first_failure_does_not_create_empty_catalog(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=OSError("offline")):
+            self.assertEqual(2, products.check(directory))
             self.assertFalse((Path(directory) / "products.json").exists())
 
 

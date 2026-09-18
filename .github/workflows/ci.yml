@@ -16,7 +16,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Test public product parser
-        run: python3 build/test_products.py
+        run: |
+          python3 build/test_products.py
+          python3 build/test_products_alert.py
 
       - uses: actions/setup-dotnet@v6
         with:
