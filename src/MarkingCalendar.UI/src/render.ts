@@ -7,6 +7,7 @@ import type {
   ChangeCountsViewModel,
   ChangeSummaryViewModel,
   CommandSink,
+  ProductListRow,
   ThemePreference,
 } from "./contracts";
 import {
@@ -72,7 +73,7 @@ const GUIDE_STEPS = [
 ] as const;
 
 type ActiveView = "calendar" | "changes";
-type OpenDialog = { readonly kind: "about" | "support" | "profile" } | {
+type OpenDialog = { readonly kind: "about" | "support" | "profile" | "products" } | {
   readonly kind: "events";
   readonly cardKey: string;
   readonly date: string;
@@ -117,6 +118,8 @@ interface UiState {
   hasSelectedGroups: boolean;
   selectedArchiveId: string;
   dismissedComparisonBase: string | null;
+  productsQuery: string;
+  productsGroupId: string | null;
 }
 
 export interface MountedApp {
@@ -156,6 +159,8 @@ class TimelineRenderer implements MountedApp {
     hasSelectedGroups: false,
     selectedArchiveId: "",
     dismissedComparisonBase: null,
+    productsQuery: "",
+    productsGroupId: null,
   };
   private model: AppViewModel | null = null;
   private selectionRevision = 0;
@@ -243,6 +248,7 @@ class TimelineRenderer implements MountedApp {
             <div class="help-menu" id="help-menu" role="menu" aria-label="Справка" hidden>
               <button type="button" role="menuitem" data-action="guide">Краткий обзор</button>
               <button type="button" role="menuitem" data-action="profile">Настроить профиль</button>
+              <button type="button" role="menuitem" data-action="products">Товарные перечни</button>
               <button type="button" role="menuitem" data-action="support">Поддержать разработку</button>
               <button type="button" role="menuitem" data-action="about">О программе</button>
             </div>
@@ -550,6 +556,11 @@ class TimelineRenderer implements MountedApp {
       close();
       if (this.model) this.postponeSupportPrompt(this.model.today);
       this.state.dialog = { kind: "support" };
+      this.renderOverlay(helpButton);
+    });
+    required(this.root.querySelector<HTMLButtonElement>('[data-action="products"]')).addEventListener("click", () => {
+      close();
+      this.state.dialog = { kind: "products" };
       this.renderOverlay(helpButton);
     });
     required(this.root.querySelector<HTMLButtonElement>('[data-action="profile"]')).addEventListener("click", () => {
@@ -1295,6 +1306,7 @@ class TimelineRenderer implements MountedApp {
       case "events": return JSON.stringify([dialog, model.events.filter(event => dialog.eventIds.includes(event.id)), model.categories, model.groups]);
       case "about": return JSON.stringify([dialog, model.about]);
       case "support": return JSON.stringify([dialog, model.about.supportUrl]);
+      case "products": return JSON.stringify([dialog, model.products]);
       default: return JSON.stringify([model.updateNotice, this.state.guideStep]);
     }
   }
@@ -1304,6 +1316,7 @@ class TimelineRenderer implements MountedApp {
     if (this.state.dialog?.kind === "support") { this.showSupport(opener); return; }
     if (this.state.dialog?.kind === "about") { this.showAbout(opener); return; }
     if (this.state.dialog?.kind === "profile") { this.showProfile(opener); return; }
+    if (this.state.dialog?.kind === "products") { this.showProducts(opener); return; }
     if (this.state.dialog?.kind === "events") {
       const card = this.state.dialog;
       const events = card.eventIds.flatMap((eventId) => {
@@ -1447,8 +1460,9 @@ class TimelineRenderer implements MountedApp {
     events: ReadonlyArray<CalendarEventViewModel>,
     opener?: HTMLElement,
   ): void {
-    const hasGoodsPage = this.requireModel().groups
-      .find((group) => group.key === normalize(card.group))?.hasGoodsPage !== false;
+    const productGroup = this.requireModel().groups.find((group) => group.key === normalize(card.group));
+    const catalogGroup = this.requireModel().products?.catalog.groups.find((group) =>
+      productGroup?.goodsUrl?.includes(`/${group.id}/`) || normalize(group.name) === productGroup?.key);
     const dialog = document.createElement("section");
     dialog.className = "dialog event-dialog";
     dialog.setAttribute("role", "dialog");
@@ -1465,6 +1479,8 @@ class TimelineRenderer implements MountedApp {
     header.append(title, close);
     const list = document.createElement("div");
     list.className = "drawer-events";
+    const eventOpener = opener ?? Array.from(this.root.querySelectorAll<HTMLElement>("[data-card-key]"))
+      .find((item) => item.dataset.cardKey === card.cardKey);
     for (const event of events) {
       const category = this.requireModel().categories.find((item) => item.id === event.category);
       const article = document.createElement("article");
@@ -1499,10 +1515,18 @@ class TimelineRenderer implements MountedApp {
         source.dataset.sourceEventId = event.id;
         source.addEventListener("click", () => this.send({ type: "openExternal", url: event.url ?? "" }));
         actions.append(source);
-        if (hasGoodsPage) {
-          const goods = actionButton("Товары, подлежащие маркировке");
+        if (productGroup?.hasGoodsPage !== false && productGroup?.goodsUrl) {
+          const goods = actionButton(catalogGroup ? "Какие товары входят" : "Перечень не встроен — открыть на сайте ЧЗ");
           goods.dataset.goodsEventId = event.id;
-          goods.addEventListener("click", () => this.send({ type: "openExternal", url: markedGoodsUrl(event.url ?? "") }));
+          goods.addEventListener("click", () => {
+            if (!catalogGroup) {
+              this.send({ type: "openExternal", url: productGroup.goodsUrl ?? "" });
+              return;
+            }
+            this.state.productsGroupId = catalogGroup.id;
+            this.state.dialog = { kind: "products" };
+            this.renderOverlay(eventOpener);
+          });
           actions.append(goods);
         }
         article.append(actions);
@@ -1510,9 +1534,115 @@ class TimelineRenderer implements MountedApp {
       list.append(article);
     }
     dialog.append(header, list);
-    const eventOpener = opener ?? Array.from(this.root.querySelectorAll<HTMLElement>("[data-card-key]"))
-      .find((item) => item.dataset.cardKey === card.cardKey);
     const controller = this.openOverlay(dialog, eventOpener, close, () => { this.state.dialog = null; });
+    close.addEventListener("click", controller.requestClose);
+  }
+
+  private showProducts(opener?: HTMLElement): void {
+    const model = this.requireModel();
+    const dialog = document.createElement("section");
+    dialog.className = "dialog products-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "products-title");
+    const heading = document.createElement("div");
+    heading.className = "products-heading";
+    const title = document.createElement("h2");
+    title.id = "products-title";
+    title.textContent = "Товарные перечни";
+    const close = actionButton("Закрыть");
+    close.dataset.productsClose = "";
+    heading.append(title, close);
+    dialog.append(heading);
+
+    if (!model.products) {
+      const unavailable = document.createElement("p");
+      unavailable.textContent = "Справочник недоступен. Откройте официальный перечень на сайте Честного Знака.";
+      dialog.append(unavailable);
+      const links = document.createElement("div");
+      links.className = "products-sources";
+      for (const group of model.groups.filter((item) => item.goodsUrl)) {
+        const link = actionButton(group.name);
+        link.addEventListener("click", () => this.send({ type: "openExternal", url: group.goodsUrl ?? "" }));
+        links.append(link);
+      }
+      dialog.append(links);
+      const controller = this.openOverlay(dialog, opener ?? this.helpButton(), close, () => { this.state.dialog = null; });
+      close.addEventListener("click", controller.requestClose);
+      return;
+    }
+
+    const status = document.createElement("p");
+    status.className = "products-status";
+    status.textContent = model.products.message;
+    const groups = document.createElement("div");
+    groups.className = "products-groups";
+    const all = actionButton("Все группы");
+    all.dataset.productGroup = "all";
+    all.setAttribute("aria-pressed", String(this.state.productsGroupId === null));
+    all.addEventListener("click", () => { this.state.productsGroupId = null; this.showProducts(opener); });
+    groups.append(all);
+    for (const group of model.products.catalog.groups) {
+      const button = actionButton(group.name);
+      button.dataset.productGroup = group.id;
+      button.setAttribute("aria-pressed", String(this.state.productsGroupId === group.id));
+      button.addEventListener("click", () => { this.state.productsGroupId = group.id; this.showProducts(opener); });
+      groups.append(button);
+    }
+    const search = document.createElement("input");
+    search.type = "search";
+    search.className = "filter-field products-search";
+    search.dataset.productsSearch = "";
+    search.placeholder = "Название товара или код";
+    search.setAttribute("aria-label", "Название товара или код");
+    search.value = this.state.productsQuery;
+    const results = document.createElement("div");
+    results.className = "products-results";
+    dialog.append(status, groups, search, results);
+    const renderResults = (): void => {
+      results.replaceChildren();
+      const query = this.state.productsQuery;
+      const visibleGroups = model.products!.catalog.groups.filter((group) => !this.state.productsGroupId || group.id === this.state.productsGroupId);
+      for (const group of visibleGroups) {
+        const rows = group.rows.filter((row) => productRowMatches(row, query));
+        const examples = group.examples.filter((example) => textMatches(example, query));
+        if (query && rows.length === 0 && examples.length === 0) continue;
+        const section = document.createElement("section");
+        section.className = "products-group";
+        const name = document.createElement("h3");
+        name.textContent = group.name;
+        const sourceHeading = document.createElement("p");
+        sourceHeading.textContent = `Раздел источника: ${group.sourceHeading}`;
+        const dates = document.createElement("p");
+        dates.className = "products-dates";
+        dates.textContent = `Источник проверен: ${formatLocalDateTime(group.checkedAt)} · Перечень изменён: ${formatLocalDateTime(group.changedAt)}`;
+        const source = actionButton("Открыть на сайте ЧЗ");
+        source.addEventListener("click", () => this.send({ type: "openExternal", url: group.sourceUrl }));
+        section.append(name, sourceHeading, dates, source);
+        if (group.conditions) section.append(productText("Общие условия", group.conditions));
+        if (examples.length > 0) {
+          const block = document.createElement("div");
+          block.className = "products-examples";
+          const exampleTitle = document.createElement("h4");
+          exampleTitle.textContent = "Примеры товаров по данным ЧЗ";
+          const list = document.createElement("p");
+          list.textContent = examples.join("; ");
+          block.append(exampleTitle, list);
+          section.append(block);
+        }
+        for (const row of rows) section.append(renderProductRow(row, query, (url) => this.send({ type: "openExternal", url })));
+        results.append(section);
+      }
+      if (results.childElementCount === 0) {
+        const empty = document.createElement("p");
+        empty.className = "products-empty";
+        empty.textContent = "Ничего не найдено в загруженных трёх группах. Это не означает отсутствие требований Честного Знака.";
+        results.append(empty);
+      }
+    };
+    search.addEventListener("input", () => { this.state.productsQuery = search.value; renderResults(); });
+    renderResults();
+    const controller = this.openOverlay(dialog, opener ?? this.helpButton(), search, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);
   }
 
@@ -1732,7 +1862,7 @@ class TimelineRenderer implements MountedApp {
     publicHistoryToggle.checked = model.about.publicHistoryEnabled;
     publicHistoryToggle.dataset.action = "public-history";
     const publicHistoryText = document.createElement("span");
-    publicHistoryText.textContent = "Загружать общую историю с GitHub";
+    publicHistoryText.textContent = "Общие данные: история и товарные перечни";
     publicHistorySetting.append(publicHistoryToggle, publicHistoryText);
     publicHistoryToggle.addEventListener("change", () => this.send({
       type: "setPublicHistory",
@@ -2216,10 +2346,88 @@ function actionButton(label: string, kind = "secondary"): HTMLButtonElement {
   return button;
 }
 
-function markedGoodsUrl(source: string): string {
-  const url = new URL(source);
-  url.pathname = `${url.pathname.replace(/\/+$/, "")}/mark_goods/`;
-  return url.href;
+function productText(title: string, text: string): HTMLElement {
+  const block = document.createElement("div");
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  const value = document.createElement("p");
+  value.textContent = text;
+  block.append(heading, value);
+  return block;
+}
+
+function renderProductRow(row: ProductListRow, query: string, openExternal: (url: string) => void): HTMLElement {
+  const article = document.createElement("article");
+  article.className = "product-row";
+  const name = document.createElement("h4");
+  name.textContent = row.sourceName;
+  const section = document.createElement("p");
+  section.textContent = row.section;
+  article.append(name, section);
+  if (row.conditions) article.append(productText("Условия и исключения", row.conditions));
+  const codes = document.createElement("details");
+  codes.open = Boolean(query);
+  const summary = document.createElement("summary");
+  summary.textContent = "Исходные коды и условия";
+  codes.append(summary);
+  if (row.tnvedText) codes.append(productText("ТН ВЭД", row.tnvedText));
+  if (row.okpd2Text) codes.append(productText("ОКПД 2", row.okpd2Text));
+  article.append(codes);
+  const visibleMeanings = query
+    ? row.meanings.filter((meaning) => [meaning.code, meaning.name, meaning.sourceContext, ...meaning.searchTerms]
+      .some((value) => textMatches(value, query)))
+    : row.meanings;
+  if (visibleMeanings.length > 0) {
+    const meanings = document.createElement("div");
+    meanings.className = "product-meanings";
+    const title = document.createElement("h5");
+    title.textContent = "Что означают коды";
+    const hint = document.createElement("p");
+    hint.className = "product-meanings-hint";
+    hint.textContent = "Расшифровки кодов, включая упомянутые в исключениях; применимость см. в условиях ЧЗ.";
+    meanings.append(title, hint);
+    for (const meaning of visibleMeanings) {
+      const item = document.createElement("div");
+      const text = document.createElement("p");
+      text.textContent = `${meaning.code} — ${meaning.name}`;
+      const context = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "Описание по ЕЭК";
+      const description = document.createElement("p");
+      description.textContent = meaning.sourceContext;
+      const source = actionButton("Источник ЕЭК");
+      source.addEventListener("click", () => openExternal(meaning.sourceUrl));
+      context.append(summary, description, source);
+      item.append(text, context);
+      meanings.append(item);
+    }
+    article.append(meanings);
+  }
+  return article;
+}
+
+function productRowMatches(row: ProductListRow, query: string): boolean {
+  if (!query) return true;
+  return [row.section, row.sourceName, row.tnvedText, row.okpd2Text, row.conditions,
+    ...row.meanings.flatMap((meaning) => [meaning.code, meaning.name, meaning.sourceContext, ...meaning.searchTerms])]
+    .some((value) => textMatches(value, query));
+}
+
+function textMatches(value: string, query: string): boolean {
+  const normalizedValue = normalizeSearch(value);
+  const normalizedQuery = normalizeSearch(query);
+  if (normalizedValue.includes(normalizedQuery)) return true;
+  if (!/\d/.test(normalizedQuery)) return false;
+  return normalizedValue.replace(/[\s.]/g, "").includes(normalizedQuery.replace(/[\s.]/g, ""));
+}
+
+function normalizeSearch(value: string): string {
+  return value.toLocaleLowerCase("ru-RU").replaceAll("ё", "е").trim();
+}
+
+function formatLocalDateTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
 }
 
 function weekdayName(value: string): string {

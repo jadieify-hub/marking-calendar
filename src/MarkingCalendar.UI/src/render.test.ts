@@ -36,7 +36,141 @@ const model = {
 const GUIDE_STORAGE_KEY = "marking-calendar.guide.v2";
 const SUPPORT_PROMPT_STORAGE_KEY = "marking-calendar.support-prompt.v1";
 
+const products = {
+  kind: "ready" as const,
+  message: "Справочник доступен офлайн",
+  catalog: {
+    schemaVersion: 1,
+    revision: "test",
+    groups: [
+      {
+        id: "homeware", name: "Товары для дома", sourceUrl: "https://честныйзнак.рф/business/projects/homeware/marking_goods/",
+        sourceHeading: "Товары для дома", sourceHash: "a", revision: "a", changedAt: "2026-09-01T10:00:00+03:00", checkedAt: "2026-09-18T10:00:00+03:00",
+        conditions: "Кроме медицинских изделий", examples: ["Посуда"],
+        rows: [{ section: "Первый этап", sourceName: "Предметы домашнего обихода", tnvedText: "3924 10 000 0", okpd2Text: "", conditions: "Кроме одноразовых изделий", meanings: [{ code: "3924100000", name: "Посуда столовая", searchTerms: ["кухонная утварь"], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn39.pdf", sourceContext: "Изделия столовые и кухонные" }] }],
+      },
+      {
+        id: "cosmetics", name: "Косметика и бытовая химия", sourceUrl: "https://честныйзнак.рф/business/projects/cosmetics/mark_goods/",
+        sourceHeading: "Косметика", sourceHash: "b", revision: "b", changedAt: "2026-09-02T10:00:00+03:00", checkedAt: "2026-09-18T10:00:00+03:00",
+        conditions: "С учётом исключений", examples: ["Зубные ёршики"],
+        rows: [{ section: "Средства ухода", sourceName: "Средства для волос", tnvedText: "3305, кроме 3307 41 000 0", okpd2Text: "20.42", conditions: "Кроме ароматических средств кода 3307 41 000 0", meanings: [
+          { code: "3305", name: "Средства для волос", searchTerms: ["шампунь"], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn33.pdf", sourceContext: "Средства для волос" },
+          { code: "3307410000", name: "Агарбатти и прочие благовония", searchTerms: [], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn33.pdf", sourceContext: "Средства для ароматизации или дезодорирования помещений, включая благовония" },
+        ] }],
+      },
+      {
+        id: "grocery", name: "Бакалея", sourceUrl: "https://честныйзнак.рф/business/projects/grocery/mark_goods/",
+        sourceHeading: "Бакалея", sourceHash: "c", revision: "c", changedAt: "2026-09-03T10:00:00+03:00", checkedAt: "2026-09-18T10:00:00+03:00", conditions: "", examples: [], rows: [],
+      },
+    ],
+  },
+};
+
 describe("renderApp", () => {
+  it("searches catalog names, codes and group examples without hiding example-only matches", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model, products }, vi.fn());
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="products"]')!.click();
+    const search = root.querySelector<HTMLInputElement>('[data-products-search]')!;
+
+    search.value = "шампунь";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("Средства для волос");
+    search.value = "3924 10.000 0";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("Предметы домашнего обихода");
+    search.value = "зубные ершики";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector(".products-examples")?.textContent).toContain("Зубные ёршики");
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("С учётом исключений");
+  });
+
+  it("shows the source exclusion when searching an excluded code and hides unrelated meanings", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model, products }, vi.fn());
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="products"]')!.click();
+    const search = root.querySelector<HTMLInputElement>('[data-products-search]')!;
+    search.value = "3307410000";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(root.querySelector<HTMLDetailsElement>(".product-row > details")?.open).toBe(true);
+    expect(root.querySelector(".product-row")?.textContent).toContain("Кроме ароматических средств");
+    expect(root.querySelector(".product-meanings")?.textContent).toContain("включая упомянутые в исключениях");
+    expect(root.querySelector(".product-meanings")?.textContent).toContain("3307410000 — Агарбатти и прочие благовония");
+    expect(root.querySelector(".product-meanings")?.textContent).not.toContain("3305 — Средства для волос");
+  });
+
+  it("opens a catalog group without calendar events and preserves search and group across updates", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update({ ...model, products });
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="products"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-product-group="homeware"]')!.click();
+    const search = root.querySelector<HTMLInputElement>('[data-products-search]')!;
+    search.value = "посуда";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const updatedProducts = {
+      ...products,
+      kind: "error" as const,
+      message: "Не удалось обновить справочник",
+      catalog: { ...products.catalog, groups: products.catalog.groups.map((group) => group.id === "homeware"
+        ? { ...group, rows: group.rows.map((row) => ({ ...row, sourceName: "Обновлённые предметы домашнего обихода" })) }
+        : group) },
+    };
+    mounted.update({ ...model, products: updatedProducts });
+
+    expect(root.querySelector<HTMLInputElement>('[data-products-search]')?.value).toBe("посуда");
+    expect(root.querySelector('[data-product-group="homeware"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("Не удалось обновить справочник");
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("Обновлённые предметы домашнего обихода");
+  });
+
+  it("uses the backend goods URL for legacy groups and opens pilot groups inside the catalog", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const send = vi.fn();
+    const event = { ...model.events[0], id: "goods", group: "Товары для дома", url: "https://честныйзнак.рф/business/projects/homeware/" };
+    renderApp(root, {
+      ...model, products,
+      groups: [{ key: "товары для дома", name: "Товары для дома", eventCount: 1, goodsUrl: products.catalog.groups[0]!.sourceUrl }],
+      events: [event],
+    }, send);
+    const cardOpener = root.querySelector<HTMLButtonElement>("[data-card-key]")!;
+    cardOpener.click();
+    root.querySelector<HTMLButtonElement>('[data-goods-event-id="goods"]')!.click();
+    expect(root.querySelector(".products-dialog")?.textContent).toContain("Товары для дома");
+    root.querySelector<HTMLElement>(".products-dialog")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(document.activeElement).toBe(cardOpener);
+
+    renderApp(root, {
+      ...model, products,
+      groups: [{ key: "игрушки", name: "Игрушки", eventCount: 1, goodsUrl: "https://честныйзнак.рф/business/projects/children/marking_goods/" }],
+      events: [{ ...event, group: "Игрушки" }],
+    }, send);
+    root.querySelector<HTMLButtonElement>("[data-card-key]")!.click();
+    root.querySelector<HTMLButtonElement>('[data-goods-event-id="goods"]')!.click();
+    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/children/marking_goods/" });
+  });
+
+  it("labels the shared data setting consistently in both states", () => {
+    const enabledRoot = document.createElement("div");
+    renderApp(enabledRoot, model, vi.fn());
+    enabledRoot.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    enabledRoot.querySelector<HTMLButtonElement>('[data-action="about"]')!.click();
+    expect(enabledRoot.querySelector('[data-action="public-history"]')?.parentElement?.textContent)
+      .toBe("Общие данные: история и товарные перечни");
+
+    const disabledRoot = document.createElement("div");
+    renderApp(disabledRoot, { ...model, about: { ...model.about, publicHistoryEnabled: false } }, vi.fn());
+    disabledRoot.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    disabledRoot.querySelector<HTMLButtonElement>('[data-action="about"]')!.click();
+    expect(disabledRoot.querySelector('[data-action="public-history"]')?.parentElement?.textContent)
+      .toBe("Общие данные: история и товарные перечни");
+  });
   it.each(["all", "none"])("keeps the profile intact when bulk selection is %s", (selection) => {
     const root = document.createElement("div");
     const send = vi.fn();
@@ -584,7 +718,7 @@ describe("renderApp", () => {
     const groupedModel = {
       ...model,
       eventCount: 2,
-      groups: [{ key: "бад", name: "БАД", eventCount: 2 }],
+      groups: [{ key: "бад", name: "БАД", eventCount: 2, goodsUrl: "https://честныйзнак.рф/business/projects/grocery/mark_goods/?from=calendar#details" }],
       events: [
         { ...model.events[0], id: "same-a", start: "2026-09-10", group: "БАД", url: "https://честныйзнак.рф/a" },
         { ...model.events[1], id: "same-b", start: "2026-09-10", group: "БАД", description: "Полное описание", period: "с 10 сентября", url: "https://честныйзнак.рф/business/projects/grocery?from=calendar#details" },
@@ -611,7 +745,7 @@ describe("renderApp", () => {
     expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/grocery?from=calendar#details" });
 
     root.querySelector<HTMLButtonElement>('[data-goods-event-id="same-b"]')?.click();
-    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/grocery/mark_goods/?from=calendar#details" });
+    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/grocery/mark_goods/?from=calendar#details" });
 
     mounted.update({ ...groupedModel, status: { kind: "checking", message: "Проверяем обновления…" } });
     expect(root.querySelectorAll(".drawer-event")).toHaveLength(2);

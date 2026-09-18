@@ -10,6 +10,7 @@ public sealed class WebMessageRouterTests
     [InlineData("https://честныйзнак.рф/business/projects/beer/")]
     [InlineData("https://github.com/jadieify-hub/marking-calendar")]
     [InlineData("https://pay.cloudtips.ru/p/53698013")]
+    [InlineData("https://eec.eaeunion.org/comission/department/catr/ett/")]
     public async Task HandleAsync_OpensOnlyTrustedHttpsTargets(string url)
     {
         var launcher = new RecordingLauncher();

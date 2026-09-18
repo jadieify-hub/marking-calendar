@@ -299,6 +299,26 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 19px; }
 .dialog-button { min-height: 42px; padding: 0 15px; border: 1px solid var(--line); border-radius: 9px; background: transparent; cursor: pointer; }
 .dialog-button.primary { border-color: transparent; background: var(--accent); color: white; font-weight: 700; }
+.products-dialog { width: min(960px, 100%); }
+.products-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.products-heading h2 { margin-bottom: 8px; }
+.products-status, .products-dates { margin: 0 0 12px; color: var(--muted) !important; font-size: 12.5px; }
+.products-groups, .products-sources { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.products-groups [aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.products-search { margin-bottom: 14px; }
+.products-results { display: grid; gap: 14px; }
+.products-group { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.products-group > h3 { margin-top: 0; }
+.products-group h4, .products-group h5 { margin: 13px 0 5px; }
+.products-group p { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.products-examples { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); }
+.product-row { min-width: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.product-row details { margin-top: 10px; }
+.product-row summary { color: var(--accent); font-weight: 700; cursor: pointer; }
+.product-meanings-hint { color: var(--muted) !important; font-size: 12.5px; }
+.product-meanings > div { display: grid; gap: 4px; margin-top: 9px; }
+.product-meanings > div > details { margin: 0; padding-left: 10px; border-left: 2px solid var(--line-soft); }
+.products-empty { margin: 0; padding: 18px; border: 1px dashed var(--line); border-radius: 9px; }
 .event-dialog { width: min(820px, 100%); padding: 0; }
 .drawer-header { position: sticky; z-index: 2; top: 0; display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 15px; border-bottom: 1px solid var(--line); background: var(--surface-raised); }
 .drawer-header .drawer-title { flex: 1; margin: 0; font-size: 19px; line-height: 1.35; }

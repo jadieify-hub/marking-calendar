@@ -15,7 +15,8 @@ public sealed record GroupMapEntry(
     string Link,
     IReadOnlyList<string> Sectors,
     string? Status = null,
-    bool? GoodsPath = null)
+    bool? GoodsPath = null,
+    string? GoodsUrl = null)
 {
     public bool IsCompleted => Status == GroupMapStatuses.Completed;
 }
@@ -85,6 +86,13 @@ public static class GroupMapValidator
             {
                 errors.Add($"У группы «{group.Name}» указан неизвестный статус {group.Status}.");
             }
+            if (group.GoodsUrl is not null && (!Uri.TryCreate(group.GoodsUrl, UriKind.Absolute, out var goodsUrl)
+                || goodsUrl.Scheme != Uri.UriSchemeHttps
+                || !goodsUrl.IdnHost.Equals("xn--80ajghhoc2aj1c8b.xn--p1ai", StringComparison.OrdinalIgnoreCase)
+                || !goodsUrl.AbsolutePath.StartsWith("/business/projects/", StringComparison.Ordinal)))
+            {
+                errors.Add($"У группы «{group.Name}» указан недопустимый goodsUrl.");
+            }
         }
         return errors;
     }
@@ -152,7 +160,7 @@ public static class GroupMapMatcher
         return new GroupMapMatchReport(matches, snapshotOnly, mapOnly);
     }
 
-    internal static string NormalizeLink(string? value)
+    public static string NormalizeLink(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
         var trimmed = value.Trim();

@@ -6,6 +6,13 @@ namespace MarkingCalendar.Core.Tests.Groups;
 public sealed class GroupMapTests
 {
     [Fact]
+    public void Validate_AllowsOnlyOfficialGoodsUrl()
+    {
+        Assert.Empty(GroupMapValidator.Validate(Map([new("Игрушки", "/business/projects/children/", ["home"], GoodsUrl: "https://честныйзнак.рф/business/projects/children/marking_goods/")])));
+        Assert.Contains(GroupMapValidator.Validate(Map([new("Игрушки", "/business/projects/children/", ["home"], GoodsUrl: "https://example.com/products")])),
+            error => error.Contains("goodsUrl", StringComparison.OrdinalIgnoreCase));
+    }
+    [Fact]
     public void Validate_ReportsDuplicateNormalizedNameAndUnknownSector()
     {
         var map = Map(

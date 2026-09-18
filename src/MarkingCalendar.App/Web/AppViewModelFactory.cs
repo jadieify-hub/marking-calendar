@@ -3,6 +3,7 @@ using MarkingCalendar.Core.Changes;
 using MarkingCalendar.Core.Events;
 using MarkingCalendar.Core.Groups;
 using MarkingCalendar.Core.Snapshots;
+using MarkingCalendar.Core.Products;
 using MarkingCalendar.App.Updates;
 using MarkingCalendar.Infrastructure.Storage;
 
@@ -42,7 +43,9 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
         IReadOnlyList<SnapshotArchiveInfo>? archives = null,
         SnapshotComparison? comparison = null,
         IReadOnlyList<string>? noticeRelatedBatchIds = null,
-        GroupMap? groupMap = null)
+        GroupMap? groupMap = null,
+        ProductCatalogViewModel? products = null,
+        GroupMap? bundledGroupMap = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(history);
@@ -60,6 +63,8 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                 item => GroupKey.Normalize(item.SnapshotGroup),
                 item => item.Entry,
                 StringComparer.Ordinal);
+        var bundledByLink = (bundledGroupMap?.Groups ?? [])
+            .ToDictionary(item => GroupMapMatcher.NormalizeLink(item.Link), StringComparer.OrdinalIgnoreCase);
         var groups = snapshot.Events
             .GroupBy(item => GroupKey.Normalize(item.Group), StringComparer.Ordinal)
             .Select(group =>
@@ -69,6 +74,7 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                 var firstSeen = groupNovelty?.FirstSeen is { } firstSeenAt ? LocalDate(firstSeenAt) : (DateOnly?)null;
                 var renamedRecently = groupNovelty?.RenamedAt is { } renamedAt && LocalDate(renamedAt) >= newSince;
                 var firstEventDate = group.Select(item => item.Start ?? item.End).Where(date => date is not null).Min();
+                var goodsUrl = mappedGroup?.GoodsPath is false ? null : ResolveGoodsUrl(mappedGroup, bundledByLink);
                 return new ProductGroupViewModel(
                     group.Key,
                     group.First().Group.Trim(),
@@ -78,7 +84,8 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                     firstSeen is not null && firstSeen >= newSince,
                     renamedRecently ? groupNovelty?.RenamedFrom : null,
                     mappedGroup?.IsCompleted ?? false,
-                    mappedGroup?.GoodsPath is not false);
+                    mappedGroup?.GoodsPath is not false,
+                    goodsUrl);
             })
             .OrderBy(group => group.IsCompleted)
             .ThenBy(group => group.Name, StringComparer.Create(Russian, ignoreCase: true))
@@ -148,7 +155,19 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                 state.PublicHistoryEnabled,
                 state.ChangeNotificationsEnabled),
             suggestions,
-            profile);
+            profile,
+            Products: products);
+    }
+
+    private static string? ResolveGoodsUrl(GroupMapEntry? group, Dictionary<string, GroupMapEntry> bundledByLink)
+    {
+        if (group is null) return null;
+        if (!string.IsNullOrWhiteSpace(group.GoodsUrl)) return group.GoodsUrl;
+        if (bundledByLink.TryGetValue(GroupMapMatcher.NormalizeLink(group.Link), out var bundled) && !string.IsNullOrWhiteSpace(bundled.GoodsUrl)) return bundled.GoodsUrl;
+        var link = group.Link.TrimEnd('/');
+        return Uri.TryCreate(link, UriKind.Absolute, out var absolute)
+            ? new Uri(absolute, absolute.AbsolutePath.TrimEnd('/') + "/mark_goods/").AbsoluteUri
+            : $"https://честныйзнак.рф{(link.StartsWith('/') ? "" : "/")}{link}/mark_goods/";
     }
 
     private static UserProfileViewModel Profile(AppState state, GroupMap? groupMap)

@@ -1,0 +1,67 @@
+name: Public product lists
+
+on:
+  schedule:
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+
+# Both publishers write to data; serialize their checkouts and pushes.
+concurrency:
+  group: history
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: [self-hosted, linux, x64, marking-calendar]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: data
+          path: data
+
+      - name: Check public product lists
+        id: check
+        shell: bash
+        run: |
+          set +e
+          python3 build/products.py check --data ./data > products-check.log 2>&1
+          exit_code=$?
+          set -e
+          cat products-check.log
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Товарные перечни'
+            echo '```text'
+            cat products-check.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish verified groups
+        if: steps.check.outputs.exit_code == '0' || steps.check.outputs.exit_code == '2'
+        shell: bash
+        run: |
+          if [ ! -f data/products.json ]; then exit 0; fi
+          git -C data add -- products.json
+          if git -C data diff --cached --quiet; then exit 0; fi
+          git -C data -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'data: проверка товарных перечней'
+          git -C data push origin HEAD:data
+
+      - name: Save check diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: products-check
+          path: |
+            products-check.log
+            data/rejected-products/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Report source failure
+        if: steps.check.outputs.exit_code != '0'
+        run: exit 1

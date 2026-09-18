@@ -5,6 +5,7 @@ using MarkingCalendar.Core.Changes;
 using MarkingCalendar.Core.Events;
 using MarkingCalendar.Core.Groups;
 using MarkingCalendar.Core.Snapshots;
+using MarkingCalendar.Core.Products;
 using MarkingCalendar.Infrastructure.Storage;
 
 namespace MarkingCalendar.App.Tests.Web;
@@ -170,6 +171,38 @@ public sealed class AppViewModelFactoryTests
         Assert.True(result.Groups[^1].HasGoodsPage);
         Assert.True(result.Groups[^1].IsCompleted);
         Assert.Equal("Яркая группа", Assert.Single(result.GroupSuggestions).Name);
+    }
+
+    [Fact]
+    public void Create_ResolvesGoodsUrlFromBundledMapAndKeepsDownloadedDisableAuthoritative()
+    {
+        var item = Event("1", "Товары для дома") with { Url = new Uri("https://честныйзнак.рф/business/projects/homeware/") };
+        var snapshot = CalendarSnapshot.Create(new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero), new Uri("https://example.test"), [item]);
+        var downloaded = new GroupMap(2, "2026-09-02", [new("home", "Для дома")],
+            [new(item.Group, "/business/projects/homeware/", ["home"], GoodsPath: false)]);
+        var bundled = new GroupMap(2, "2026-09-02", [new("home", "Для дома")],
+            [new(item.Group, "/business/projects/homeware/", ["home"], GoodsUrl: "https://честныйзнак.рф/business/projects/homeware/marking_goods/")]);
+
+        var result = new AppViewModelFactory(new ChangeSummaryFactory(), new FixedTimeProvider()).Create(snapshot, ChangeHistory.Empty,
+            new AppStatusViewModel("ready", "Данные актуальны"), null, AppState.Initial, groupMap: downloaded, bundledGroupMap: bundled);
+
+        var group = Assert.Single(result.Groups);
+        Assert.False(group.HasGoodsPage);
+        Assert.Null(group.GoodsUrl);
+    }
+
+    [Fact]
+    public void Create_ExposesCatalogStateIndependently()
+    {
+        var item = Event("1", "Бакалея");
+        var snapshot = CalendarSnapshot.Create(new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero), new Uri("https://example.test"), [item]);
+        var catalog = new ProductCatalog(1, "r1", []);
+
+        var result = new AppViewModelFactory(new ChangeSummaryFactory(), new FixedTimeProvider()).Create(snapshot, ChangeHistory.Empty,
+            new AppStatusViewModel("ready", "Данные актуальны"), null, AppState.Initial,
+            products: new ProductCatalogViewModel(catalog, "ready", "Справочник актуален"));
+
+        Assert.Same(catalog, result.Products?.Catalog);
     }
 
     [Theory]

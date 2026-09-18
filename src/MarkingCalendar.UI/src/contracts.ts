@@ -19,6 +19,44 @@ export interface ProductGroupViewModel {
   readonly renamedFrom?: string | null;
   readonly isCompleted?: boolean;
   readonly hasGoodsPage?: boolean;
+  readonly goodsUrl?: string | null;
+}
+
+export interface ProductCodeMeaning {
+  readonly code: string;
+  readonly name: string;
+  readonly searchTerms: ReadonlyArray<string>;
+  readonly sourceUrl: string;
+  readonly sourceContext: string;
+}
+
+export interface ProductListRow {
+  readonly section: string;
+  readonly sourceName: string;
+  readonly tnvedText: string;
+  readonly okpd2Text: string;
+  readonly conditions: string;
+  readonly meanings: ReadonlyArray<ProductCodeMeaning>;
+}
+
+export interface ProductListGroup {
+  readonly id: string;
+  readonly name: string;
+  readonly sourceUrl: string;
+  readonly sourceHeading: string;
+  readonly sourceHash: string;
+  readonly revision: string;
+  readonly changedAt: string;
+  readonly checkedAt: string;
+  readonly conditions: string;
+  readonly examples: ReadonlyArray<string>;
+  readonly rows: ReadonlyArray<ProductListRow>;
+}
+
+export interface ProductCatalogViewModel {
+  readonly catalog: { readonly schemaVersion: number; readonly revision: string; readonly groups: ReadonlyArray<ProductListGroup> };
+  readonly kind: "cached" | "checking" | "ready" | "error";
+  readonly message: string;
 }
 
 export interface GroupSuggestionViewModel {
@@ -171,6 +209,7 @@ export interface AppViewModel {
   readonly about: ProductViewModel;
   readonly groupSuggestions: ReadonlyArray<GroupSuggestionViewModel>;
   readonly profile: UserProfileViewModel;
+  readonly products?: ProductCatalogViewModel | null;
 }
 
 export type UiCommand =

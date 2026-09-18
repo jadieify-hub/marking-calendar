@@ -40,6 +40,10 @@ try {
     [System.IO.File]::WriteAllText((Join-Path $publicRoot 'source.json'), $sourcePayload, [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText((Join-Path $historyRoot 'changes.json'), '{"batches":[]}', [System.Text.UTF8Encoding]::new($false))
     Copy-Item -LiteralPath (Join-Path $repoRoot 'assets\groups\groups.json') -Destination (Join-Path $publicRoot 'groups.json')
+    $productsPayload = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'src\MarkingCalendar.App\Resources\bundled-products.json'),
+        [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText((Join-Path $publicRoot 'products.json'), $productsPayload, [System.Text.UTF8Encoding]::new($false))
     $generatedAt = [DateTimeOffset]'2026-09-01T09:00:00Z'
     $manifest = [ordered]@{
         schemaVersion = 1
@@ -59,6 +63,7 @@ try {
     $metadata = Join-Path $outputRoot 'bundled-metadata.json'
     $history = Join-Path $outputRoot 'bundled-history.json'
     $groups = Join-Path $outputRoot 'bundled-groups.json'
+    $products = Join-Path $outputRoot 'bundled-products.json'
     & $refreshScript `
         -FromPublic `
         -PublicDataPath $publicRoot `
@@ -66,13 +71,53 @@ try {
         -DestinationPath $destination `
         -MetadataPath $metadata `
         -HistoryDestinationPath $history `
-        -GroupsDestinationPath $groups
+        -GroupsDestinationPath $groups `
+        -ProductsDestinationPath $products
 
     if (-not (Test-Path -LiteralPath $destination) -or -not (Test-Path -LiteralPath $history) -or -not (Test-Path -LiteralPath $groups)) {
         throw 'Режим -FromPublic не записал снимок, историю и карту групп.'
     }
     if ([System.IO.File]::ReadAllText($groups, [System.Text.Encoding]::UTF8) -ne [System.IO.File]::ReadAllText((Join-Path $publicRoot 'groups.json'), [System.Text.Encoding]::UTF8)) {
         throw 'Карта групп перенесена из публичной ветки с изменениями.'
+    }
+    if ([System.IO.File]::ReadAllText($products, [System.Text.Encoding]::UTF8) -ne $productsPayload) {
+        throw 'Товарный справочник не перенесён из публичной ветки без изменений.'
+    }
+
+    $preservedProducts = '{"schemaVersion":1,"revision":"preserved","groups":[]}'
+    [System.IO.File]::WriteAllText($products, $preservedProducts, [System.Text.UTF8Encoding]::new($false))
+    Remove-Item -LiteralPath (Join-Path $publicRoot 'products.json')
+    & $refreshScript -FromPublic -PublicDataPath $publicRoot -ReferenceTime $generatedAt.AddDays(7) `
+        -DestinationPath $destination -MetadataPath $metadata -HistoryDestinationPath $history `
+        -GroupsDestinationPath $groups -ProductsDestinationPath $products
+    if ([System.IO.File]::ReadAllText($products, [System.Text.Encoding]::UTF8) -ne $preservedProducts) {
+        throw 'Отсутствующий products.json не должен затирать встроенный справочник.'
+    }
+
+    $invalidProducts = '{"schemaVersion":1,"revision":"invalid","groups":[{"id":"grocery","name":"Бакалея","sourceUrl":"https://честныйзнак.рф/business/projects/grocery/mark_goods/","sourceHeading":"Перечень","sourceHash":"abc","revision":"g1","changedAt":"2026-09-01T00:00:00Z","checkedAt":"2026-09-01T00:00:00Z","rows":[]}]}'
+    [System.IO.File]::WriteAllText((Join-Path $publicRoot 'products.json'), $invalidProducts, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($destination, '{"stale":true}', [System.Text.UTF8Encoding]::new($false))
+    $productsWarnings = @()
+    & $refreshScript -FromPublic -PublicDataPath $publicRoot -ReferenceTime $generatedAt.AddDays(7) `
+        -DestinationPath $destination -MetadataPath $metadata -HistoryDestinationPath $history `
+        -GroupsDestinationPath $groups -ProductsDestinationPath $products -WarningVariable productsWarnings
+    if ([System.IO.File]::ReadAllText($products, [System.Text.Encoding]::UTF8) -ne $preservedProducts) {
+        throw 'Повреждённый products.json не должен затирать встроенный справочник.'
+    }
+    if (($productsWarnings -join ' ') -notmatch 'товарн.*поврежд') {
+        throw 'Повреждённый products.json должен быть явно диагностирован.'
+    }
+    if ([System.IO.File]::ReadAllText($destination, [System.Text.Encoding]::UTF8) -ne $sourcePayload) {
+        throw 'Повреждённый products.json не должен блокировать обновление календарных ресурсов.'
+    }
+    $invalidProducts = $productsPayload | ConvertFrom-Json
+    $invalidProducts.groups[0].examples = @($null)
+    [System.IO.File]::WriteAllText((Join-Path $publicRoot 'products.json'), ($invalidProducts | ConvertTo-Json -Depth 20), [System.Text.UTF8Encoding]::new($false))
+    & $refreshScript -FromPublic -PublicDataPath $publicRoot -ReferenceTime $generatedAt.AddDays(7) `
+        -DestinationPath $destination -MetadataPath $metadata -HistoryDestinationPath $history `
+        -GroupsDestinationPath $groups -ProductsDestinationPath $products
+    if ([System.IO.File]::ReadAllText($products, [System.Text.Encoding]::UTF8) -ne $preservedProducts) {
+        throw 'Null внутри массива справочника не должен попадать во встроенную версию.'
     }
     $writtenMetadata = [System.IO.File]::ReadAllText($metadata, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
     if ([DateTimeOffset]$writtenMetadata.retrievedAt -ne $generatedAt) {

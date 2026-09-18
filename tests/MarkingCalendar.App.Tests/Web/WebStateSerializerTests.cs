@@ -35,5 +35,7 @@ public sealed class WebStateSerializerTests
         Assert.Contains("\"end\":null", json, StringComparison.Ordinal);
         Assert.Contains("\"url\":null", json, StringComparison.Ordinal);
         Assert.Contains("\"changeNotificationsEnabled\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"products\":null", json, StringComparison.Ordinal);
+        Assert.Contains("\"goodsUrl\":null", json, StringComparison.Ordinal);
     }
 }

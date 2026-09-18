@@ -10,6 +10,7 @@ using MarkingCalendar.Core.Events;
 using MarkingCalendar.Core.Export;
 using MarkingCalendar.Core.Groups;
 using MarkingCalendar.Core.Snapshots;
+using MarkingCalendar.Core.Products;
 using MarkingCalendar.Infrastructure.Migration;
 using MarkingCalendar.Infrastructure.Diagnostics;
 using MarkingCalendar.Infrastructure.Source;
@@ -23,9 +24,12 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private readonly MainWindow _window = window ?? throw new ArgumentNullException(nameof(window));
     private readonly IAppLogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly HttpClient _httpClient = new();
+    private readonly HttpClient _productsHttpClient = new(new HttpClientHandler { AllowAutoRedirect = false });
     private CalendarStore? _store;
     private AppStateStore? _stateStore;
     private GroupMapStore? _groupMapStore;
+    private ProductCatalogStore? _productCatalogStore;
+    private ProductCatalogClient? _productCatalogClient;
     private CalendarUpdateService? _updateService;
     private AppUpdateService? _appUpdateService;
     private ChangeNotificationService? _changeNotificationService;
@@ -43,6 +47,11 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private ChangeHistory _publicHistory = ChangeHistory.Empty;
     private PublicHistoryClient? _publicHistoryClient;
     private GroupMap? _groupMap;
+    private GroupMap? _bundledGroupMap;
+    private ProductCatalog? _productCatalog;
+    private ProductCatalogViewModel? _products;
+    private bool _hasDownloadedProducts;
+    private DateTimeOffset? _productsCheckedAt;
     private AppState _state = AppState.Initial;
     private AppStatusViewModel _status = new("ready", "Сохранённые данные");
     private ChangeBatch? _notice;
@@ -69,6 +78,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             maxHistoryBatches: 500);
         _stateStore = new AppStateStore(paths, writer);
         _groupMapStore = new GroupMapStore(paths, writer);
+        _productCatalogStore = new ProductCatalogStore(paths, writer);
         var legacyDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CHZ-MarkingCalendar");
@@ -77,6 +87,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
 
         _bundledSnapshot = await LoadBundledAsync(normalizer, cancellationToken);
         var bundledGroups = await LoadBundledGroupsAsync(cancellationToken);
+        _bundledGroupMap = bundledGroups;
         try
         {
             _groupMap = await _groupMapStore.LoadAsync(cancellationToken) ?? bundledGroups;
@@ -86,6 +97,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _logger.Log(AppLogLevel.Warning, "groups", "Сохранённая карта групп повреждена, используется встроенная.", error);
             _groupMap = bundledGroups;
         }
+        await LoadProductsAsync(cancellationToken);
         var recovery = await new SnapshotRecoveryService(
             _store,
             _ => Task.FromResult(_bundledSnapshot ?? throw new InvalidOperationException("Встроенный снимок не загружен."))).ResolveAsync(cancellationToken);
@@ -123,6 +135,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _httpClient,
             new Uri(ProductInfo.PublicHistoryManifestUrl),
             ProductInfo.Version);
+        _productCatalogClient = new ProductCatalogClient(_productsHttpClient, ProductInfo.Version);
         _archives = await BuildArchiveListAsync(cancellationToken);
         var summaryFactory = new ChangeSummaryFactory();
         var diffEngine = new EventDiffEngine();
@@ -144,7 +157,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         var router = new WebMessageRouter(
             new ShellExternalLauncher(),
             clipboard,
-            RefreshAsync,
+            cancellationToken => RefreshAsync(forceProducts: true, cancellationToken),
             OpenChangesAsync,
             DismissNoticeAsync,
             ReadyAsync,
@@ -196,6 +209,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         _updateService?.Dispose();
         _store?.Dispose();
         _httpClient.Dispose();
+        _productsHttpClient.Dispose();
         _refreshLifetime.Dispose();
     }
 
@@ -219,27 +233,35 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         {
             _ = _appUpdateService.CheckAndDownloadAsync(cancellationToken);
         }
-        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+        await RefreshAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private async void RefreshTimer_Tick(object? sender, EventArgs e) =>
-        await RefreshAsync(CancellationToken.None);
+        await RefreshAsync(cancellationToken: CancellationToken.None);
 
-    private Task RefreshAsync(CancellationToken cancellationToken) =>
+    private Task RefreshAsync(bool forceProducts = false, CancellationToken cancellationToken = default) =>
         UiDispatcher.InvokeAsync(_window.Dispatcher, () =>
         {
             // Startup, the timer and the manual command share the entire refresh, not just the HTTP request.
             if (_disposed || !_refreshTask.IsCompleted) return Task.CompletedTask;
-            _refreshTask = RefreshSafelyAsync(cancellationToken);
+            _refreshTask = RefreshSafelyAsync(cancellationToken, forceProducts);
             return _refreshTask;
         });
 
-    private async Task RefreshSafelyAsync(CancellationToken cancellationToken)
+    private async Task RefreshSafelyAsync(CancellationToken cancellationToken, bool forceProducts = false)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _refreshLifetime.Token);
         try
         {
-            await RefreshCoreAsync(linked.Token).ConfigureAwait(false);
+            var productsTask = RefreshProductsSafelyAsync(forceProducts, linked.Token);
+            try
+            {
+                await RefreshCoreAsync(linked.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                await productsTask.ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
@@ -369,7 +391,9 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             _archives,
             _comparison,
             _noticeRelatedBatchIds,
-            _groupMap) with { SelectionRevision = _selectionRevision };
+            _groupMap,
+            _products,
+            _bundledGroupMap) with { SelectionRevision = _selectionRevision };
         return _window.PostStateAsync(model);
     }).Task.Unwrap();
 
@@ -506,6 +530,35 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         catch (Exception error) when (error is PublicHistoryException or IOException or UnauthorizedAccessException)
         {
             _logger.Log(AppLogLevel.Warning, "public-history", "Не удалось обновить общую историю изменений.", error);
+        }
+    }
+
+    private async Task RefreshProductsSafelyAsync(bool force, CancellationToken cancellationToken)
+    {
+        if (_productCatalogClient is null || _productCatalogStore is null || !_state.PublicHistoryEnabled) return;
+        if (!force && _productsCheckedAt is { } checkedAt && TimeProvider.System.GetUtcNow() - checkedAt < TimeSpan.FromDays(1)) return;
+        try
+        {
+            var catalog = await _productCatalogClient.FetchAsync(cancellationToken).ConfigureAwait(false);
+            _productsCheckedAt = TimeProvider.System.GetUtcNow();
+            if (catalog is null) return;
+            var changed = _hasDownloadedProducts && _productCatalog?.Revision != catalog.Revision;
+            await _productCatalogStore.SaveAsync(catalog, cancellationToken).ConfigureAwait(false);
+            _productCatalog = catalog;
+            _hasDownloadedProducts = true;
+            _products = new ProductCatalogViewModel(catalog, "ready",
+                changed ? "Обновлён перечень: доступна новая версия" : "Получена опубликованная версия справочника");
+            await SendStateAsync().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception error) when (error is ProductCatalogException or IOException or UnauthorizedAccessException)
+        {
+            _logger.Log(AppLogLevel.Warning, "products", "Не удалось обновить товарный справочник.", error);
+            if (_productCatalog is not null)
+            {
+                _products = new ProductCatalogViewModel(_productCatalog, "error", "Не удалось проверить обновление. Показана сохранённая версия");
+                await SendStateAsync().ConfigureAwait(false);
+            }
         }
     }
 
@@ -656,6 +709,40 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             .GetManifestResourceStream("MarkingCalendar.Resources.bundled-groups.json")
             ?? throw new FileNotFoundException("Встроенная карта товарных групп не найдена.");
         return await BundledSnapshotLoader.LoadGroupsAsync(stream, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task LoadProductsAsync(CancellationToken cancellationToken)
+    {
+        var bundled = await LoadBundledProductsAsync(cancellationToken);
+        try
+        {
+            var saved = await _productCatalogStore!.LoadAsync(cancellationToken);
+            _productCatalog = saved ?? bundled;
+            _hasDownloadedProducts = saved is not null;
+        }
+        catch (Exception error) when (error is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            _logger.Log(AppLogLevel.Warning, "products", "Сохранённый товарный справочник недоступен, используется встроенный.", error);
+            _productCatalog = bundled;
+        }
+        if (_productCatalog is not null) _products = new ProductCatalogViewModel(_productCatalog, "cached", "Показана сохранённая версия");
+    }
+
+    private async Task<ProductCatalog?> LoadBundledProductsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MarkingCalendar.Resources.bundled-products.json");
+            if (stream is null) return null;
+            var catalog = await System.Text.Json.JsonSerializer.DeserializeAsync<ProductCatalog>(stream, JsonDefaults.Options, cancellationToken).ConfigureAwait(false);
+            ProductCatalogValidator.EnsureValid(catalog);
+            return catalog;
+        }
+        catch (Exception error) when (error is System.Text.Json.JsonException or ProductCatalogValidationException or IOException)
+        {
+            _logger.Log(AppLogLevel.Warning, "products", "Встроенный товарный справочник недоступен.", error);
+            return null;
+        }
     }
 
     private void LogGroupMapConflicts()

@@ -22,6 +22,7 @@
     <EmbeddedResource Include="Resources\bundled-metadata.json" LogicalName="MarkingCalendar.Resources.bundled-metadata.json" />
     <EmbeddedResource Include="Resources\bundled-history.json" LogicalName="MarkingCalendar.Resources.bundled-history.json" />
     <EmbeddedResource Include="Resources\bundled-groups.json" LogicalName="MarkingCalendar.Resources.bundled-groups.json" />
+    <EmbeddedResource Include="Resources\bundled-products.json" LogicalName="MarkingCalendar.Resources.bundled-products.json" />
     <EmbeddedResource Include="Resources\calendar.ico" LogicalName="MarkingCalendar.Resources.calendar.ico" />
   </ItemGroup>
 

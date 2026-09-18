@@ -22,6 +22,7 @@ public sealed class AppPaths
     public string CurrentSnapshot => Path.Combine(DataDirectory, "current.json");
     public string BundledSnapshot => Path.Combine(DataDirectory, "bundled.json");
     public string GroupMapFile => Path.Combine(DataDirectory, "groups.json");
+    public string ProductCatalogFile => Path.Combine(DataDirectory, "products.json");
     public string HistoryDirectory => Path.Combine(RootDirectory, "history");
     public string ChangeHistoryFile => Path.Combine(HistoryDirectory, "changes.json");
     public string ArchiveDirectory => Path.Combine(RootDirectory, "archive");

@@ -1,4 +1,5 @@
 using MarkingCalendar.Core.Changes;
+using MarkingCalendar.Core.Products;
 
 namespace MarkingCalendar.App.Web;
 
@@ -14,7 +15,9 @@ public sealed record ProductGroupViewModel(
     bool IsNew = false,
     string? RenamedFrom = null,
     bool IsCompleted = false,
-    bool HasGoodsPage = true);
+    bool HasGoodsPage = true,
+    string? GoodsUrl = null);
+public sealed record ProductCatalogViewModel(ProductCatalog Catalog, string Kind, string Message);
 public sealed record GroupSuggestionViewModel(
     string Key,
     string Name,
@@ -132,4 +135,5 @@ public sealed record AppViewModel(
     ProductViewModel About,
     IReadOnlyList<GroupSuggestionViewModel> GroupSuggestions,
     UserProfileViewModel Profile = null!,
-    int SelectionRevision = 0);
+    int SelectionRevision = 0,
+    ProductCatalogViewModel? Products = null);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-04",
+  "updatedAt": "2026-09-18",
   "sectors": [
     {
       "id": "food",
@@ -72,7 +72,8 @@
       "link": "/business/projects/grocery/",
       "sectors": [
         "food"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/grocery/mark_goods/"
     },
     {
       "name": "Безалкогольное пиво",
@@ -110,7 +111,8 @@
       "link": "/business/projects/children/",
       "sectors": [
         "home"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/children/marking_goods/"
     },
     {
       "name": "Детское питание",
@@ -157,7 +159,8 @@
         "pharma",
         "beauty",
         "home"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/cosmetics/mark_goods/"
     },
     {
       "name": "Кресла-коляски",
@@ -377,7 +380,8 @@
       "link": "/business/projects/homeware/",
       "sectors": [
         "home"
-      ]
+      ],
+      "goodsUrl": "https://xn--80ajghhoc2aj1c8b.xn--p1ai/business/projects/homeware/marking_goods/"
     },
     {
       "name": "Товары легкой промышленности",

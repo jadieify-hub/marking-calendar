@@ -1,4 +1,5 @@
 import type { AppViewModel } from "./contracts";
+import bundledProducts from "../../MarkingCalendar.App/Resources/bundled-products.json";
 
 export const developmentFixture: AppViewModel = {
   updatedAt: "02.09.2026, 10:45",
@@ -12,6 +13,7 @@ export const developmentFixture: AppViewModel = {
   profile: { roles: [], sectors: [], selectedRoles: [], selectedSectors: [], manualGroups: {}, roleCategories: [], onboardingCompleted: true },
   selectedGroups: [],
   hasSelectedGroups: false,
+  products: { catalog: bundledProducts, kind: "cached", message: "Показана встроенная версия" },
   theme: "auto",
   categories: [
     { id: "retail", label: "Розничная продажа", color: "#1f93bb", colorDark: "#3fbde4" },

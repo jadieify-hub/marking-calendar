@@ -6,6 +6,9 @@ using MarkingCalendar.App.Web;
 using MarkingCalendar.Core.Changes;
 using MarkingCalendar.Core.Events;
 using MarkingCalendar.Core.Groups;
+using MarkingCalendar.Core.Products;
+using System.Net;
+using System.Text.Json;
 using MarkingCalendar.Core.Snapshots;
 using MarkingCalendar.Infrastructure.Diagnostics;
 using MarkingCalendar.Infrastructure.Source;
@@ -16,6 +19,72 @@ namespace MarkingCalendar.App.Tests.Hosting;
 
 public sealed class AppBootstrapperTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RefreshAsync_ProductAndCalendarFailuresAreIndependent(bool calendarFails)
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource { Fail = calendarFails });
+        await using var stream = typeof(AppBootstrapper).Assembly.GetManifestResourceStream("MarkingCalendar.Resources.bundled-products.json")!;
+        var bundled = (await JsonSerializer.DeserializeAsync<ProductCatalog>(stream, JsonDefaults.Options))!;
+        ProductCatalogValidator.EnsureValid(bundled);
+        var next = bundled with { Revision = "remote-revision" };
+        var handler = new ProductsHandler(calendarFails ? JsonSerializer.Serialize(next, JsonDefaults.Options) : "{\"groups\":[null],\"schemaVersion\":1,\"revision\":\"bad\"}");
+        using var http = new HttpClient(handler);
+        fixture.Set("_productCatalogClient", new ProductCatalogClient(http));
+        fixture.Set("_productCatalogStore", fixture.ProductStore);
+        fixture.Set("_productCatalog", bundled);
+        var profile = fixture.Read<AppState>("_state");
+
+        await fixture.RefreshAsync();
+
+        Assert.Same(profile, fixture.Read<AppState>("_state"));
+        Assert.Equal(calendarFails ? "error" : "updated", fixture.Read<AppStatusViewModel>("_status").Kind);
+        Assert.Equal(calendarFails ? next.Revision : bundled.Revision, fixture.Read<ProductCatalog>("_productCatalog").Revision);
+        Assert.Equal(calendarFails ? "ready" : "error", fixture.Read<ProductCatalogViewModel>("_products").Kind);
+        await fixture.RefreshAsync();
+        Assert.Equal(calendarFails ? 1 : 2, handler.Calls); // Retry failures; throttle only successful checks.
+    }
+
+    [Fact]
+    public async Task RefreshAsync_DisabledPublicDataDoesNotRequestProducts()
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        var handler = new ProductsHandler("{}");
+        using var http = new HttpClient(handler);
+        fixture.Set("_productCatalogClient", new ProductCatalogClient(http));
+        fixture.Set("_productCatalogStore", fixture.ProductStore);
+        fixture.Set("_state", fixture.Read<AppState>("_state") with { PublicHistoryEnabled = false });
+        await fixture.RefreshAsync();
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoadProductsAsync_UsesBundledWhenCacheIsCorruptOrLocked(bool locked)
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        fixture.Set("_productCatalogStore", fixture.ProductStore);
+        await File.WriteAllTextAsync(fixture.ProductFile, "{broken");
+        using var fileLock = locked ? File.Open(fixture.ProductFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None) : null;
+        var profile = fixture.Read<AppState>("_state");
+        await fixture.InvokeAsync("LoadProductsAsync");
+        Assert.Equal(3, fixture.Read<ProductCatalog>("_productCatalog").Groups.Count);
+        Assert.Same(profile, fixture.Read<AppState>("_state"));
+        Assert.False(fixture.Read<bool>("_hasDownloadedProducts"));
+    }
+
+    private sealed class ProductsHandler(string json) : HttpMessageHandler
+    {
+        public int Calls { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) });
+        }
+    }
+
     [Fact]
     public async Task SendStateAsync_BuildsSelectionAfterEarlierDispatcherChanges()
     {
@@ -278,6 +347,8 @@ public sealed class AppBootstrapperTests
 
         public CalendarStore Store { get; }
         public AppStateStore StateStore => new(new AppPaths(_root), new AtomicFileWriter());
+        public ProductCatalogStore ProductStore => new(new AppPaths(_root), new AtomicFileWriter());
+        public string ProductFile => new AppPaths(_root).ProductCatalogFile;
         public RecordingLogger Logger { get; }
 
         public static async Task<Fixture> CreateAsync(ICalendarSource source, IAtomicFileWriter? writer = null)
@@ -319,7 +390,7 @@ public sealed class AppBootstrapperTests
 
         public void Set(string name, object value) => typeof(AppBootstrapper).GetField(name, PrivateInstance)!.SetValue(_bootstrapper, value);
 
-        public Task RefreshAsync() => InvokeAsync("RefreshAsync");
+        public Task RefreshAsync() => InvokeAsync("RefreshAsync", false);
 
         public Task SendStateAsync() => (Task)typeof(AppBootstrapper)
             .GetMethod("SendStateAsync", PrivateInstance)!.Invoke(_bootstrapper, null)!;

@@ -315,7 +315,8 @@ public sealed class WebMessageRouter(
 
         var idnHost = uri.IdnHost;
         if (idnHost.Equals("xn--80ajghhoc2aj1c8b.xn--p1ai", StringComparison.OrdinalIgnoreCase)
-            || idnHost.Equals("pay.cloudtips.ru", StringComparison.OrdinalIgnoreCase))
+            || idnHost.Equals("pay.cloudtips.ru", StringComparison.OrdinalIgnoreCase)
+            || idnHost.Equals("eec.eaeunion.org", StringComparison.OrdinalIgnoreCase))
         {
             return uri;
         }
