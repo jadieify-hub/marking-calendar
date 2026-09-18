@@ -6,7 +6,7 @@ export const developmentFixture: AppViewModel = {
   eventCount: 3,
   today: "2026-09-02",
   groups: [
-    { key: "детские игрушки", name: "Детские игрушки", eventCount: 1 },
+    { key: "детские игрушки", name: "Детские игрушки", eventCount: 1, groupUrl: "https://честныйзнак.рф/business/projects/children/", goodsUrl: "https://честныйзнак.рф/business/projects/children/marking_goods/" },
     { key: "молочная продукция", name: "Молочная продукция", eventCount: 2 },
   ],
   groupSuggestions: [],

@@ -20,6 +20,7 @@ export interface ProductGroupViewModel {
   readonly isCompleted?: boolean;
   readonly hasGoodsPage?: boolean;
   readonly goodsUrl?: string | null;
+  readonly groupUrl?: string | null;
 }
 
 export interface ProductCodeMeaning {

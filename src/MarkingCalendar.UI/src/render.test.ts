@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountApp, renderApp } from "./render";
 import type { AppViewModel } from "./contracts";
+import bundledProducts from "../../MarkingCalendar.App/Resources/bundled-products.json";
 
 const model = {
   updatedAt: "02.09.2026, 10:00",
@@ -129,7 +130,7 @@ describe("renderApp", () => {
     expect(root.querySelector(".products-dialog")?.textContent).toContain("Обновлённые предметы домашнего обихода");
   });
 
-  it("uses the backend goods URL for legacy groups and opens pilot groups inside the catalog", () => {
+  it("shows goods within the event and keeps external links for other groups", () => {
     const root = document.createElement("div");
     document.body.append(root);
     const send = vi.fn();
@@ -141,9 +142,9 @@ describe("renderApp", () => {
     }, send);
     const cardOpener = root.querySelector<HTMLButtonElement>("[data-card-key]")!;
     cardOpener.click();
-    root.querySelector<HTMLButtonElement>('[data-goods-event-id="goods"]')!.click();
-    expect(root.querySelector(".products-dialog")?.textContent).toContain("Товары для дома");
-    root.querySelector<HTMLElement>(".products-dialog")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(root.querySelector(".event-products")?.textContent).toContain("Предметы домашнего обихода");
+    expect(root.querySelector(".products-dialog")).toBeNull();
+    root.querySelector<HTMLElement>(".event-dialog")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(document.activeElement).toBe(cardOpener);
 
     renderApp(root, {
@@ -154,6 +155,29 @@ describe("renderApp", () => {
     root.querySelector<HTMLButtonElement>("[data-card-key]")!.click();
     root.querySelector<HTMLButtonElement>('[data-goods-event-id="goods"]')!.click();
     expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/children/marking_goods/" });
+  });
+
+  it("shows toy names and exclusions in the event without an event URL and refreshes them in place", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    const mounted = mountApp(root, send);
+    const state: AppViewModel = { ...model,
+      products: { catalog: bundledProducts, kind: "cached", message: "Сохранённая версия" },
+      groups: [{ key: "детские игрушки", name: "Детские игрушки", eventCount: 1, groupUrl: "https://честныйзнак.рф/business/projects/children/" }],
+      events: [{ ...model.events[0], group: "Детские игрушки", url: null }],
+    };
+    mounted.update(state);
+    root.querySelector<HTMLButtonElement>("[data-card-key]")!.click();
+    const inline = root.querySelector(".event-products");
+    expect(inline?.textContent).toContain("Какие товары входят");
+    expect(inline?.querySelector(".event-product-names")?.textContent).toContain("куклы");
+    expect(inline?.textContent).toContain("воздушных шаров");
+    expect(inline?.textContent).toContain("до 14 лет");
+    root.querySelector<HTMLButtonElement>("[data-group-page]")!.click();
+    expect(send).toHaveBeenCalledWith({ type: "openExternal", url: "https://честныйзнак.рф/business/projects/children/" });
+    mounted.update({ ...state, products: { ...state.products!, catalog: { ...bundledProducts, groups: bundledProducts.groups.map(group => ({ ...group, conditions: group.conditions + " Уточнение источника" })) } } });
+    expect(root.querySelector(".event-products")?.textContent).toContain("Уточнение источника");
+    expect(send.mock.calls.every(([command]) => command.type === "openExternal")).toBe(true);
   });
 
   it("labels the shared data setting consistently in both states", () => {

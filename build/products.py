@@ -1,4 +1,4 @@
-"""Collect the three supported public ЧЗ product lists, independently of calendar dates."""
+"""Collect supported public ЧЗ product lists, independently of calendar dates."""
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -12,9 +12,9 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-PILOT_IDS = ("homeware", "cosmetics", "grocery")
+PILOT_IDS = ("homeware", "cosmetics", "grocery", "children")
 CHZ_HOST = "xn--80ajghhoc2aj1c8b.xn--p1ai"
-HEADINGS = {"homeware": "товаров для дома", "cosmetics": "Виды косметики", "grocery": "Виды бакалейной"}
+HEADINGS = {"homeware": "товаров для дома", "cosmetics": "Виды косметики", "grocery": "Виды бакалейной", "children": "виды товаров для детей"}
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
 
@@ -140,7 +140,8 @@ def parse_group(group_id, html, meanings):
                      "meanings": [meanings[c] for c in codes(expanded[0]) if c in meanings]})
     if not rows:
         raise ValueError("Товарная таблица пуста")
-    notes = [text(n) for n in tables[0].nodes() if n.has_class("milk-marks-table__text")]
+    notes_scope = scope if group_id == "children" else tables[0]
+    notes = [text(n) for n in notes_scope.nodes() if n.has_class("milk-marks-table__text")]
     conditions = "\n\n".join(notes)
     examples, category = [], ""
     for node in scope.nodes():
@@ -154,6 +155,8 @@ def parse_group(group_id, html, meanings):
         raise ValueError("Не найдены примечания или бытовые примеры косметики")
     if group_id == "grocery" and ("Исключения" not in conditions or "одновременно" not in conditions or conditions.count("—") < 4):
         raise ValueError("Не найдены условия и исключения бакалеи")
+    if group_id == "children" and any(part not in conditions for part in ("кодом ТН ВЭД", "кодом ОКПД 2", "воздушных шаров", "велосипедов трехколесных", "азартных игр", "ремесленников", "приложении 1")):
+        raise ValueError("Не найдены исключения для детских игрушек")
     return {"sourceHeading": heading, "conditions": conditions, "examples": examples, "rows": rows}
 
 
@@ -195,7 +198,7 @@ def check(data_dir, dry_run=False):
         source_html = ""
         try:
             meta = metadata[group_id]
-            url = meta.get("goodsUrl") or meta["link"].rstrip("/") + ("/marking_goods/" if group_id == "homeware" else "/mark_goods/")
+            url = meta.get("goodsUrl") or meta["link"].rstrip("/") + ("/marking_goods/" if group_id in ("homeware", "children") else "/mark_goods/")
             if url.startswith("/"):
                 url = "https://" + CHZ_HOST + url
             source_html = fetch_page(url)

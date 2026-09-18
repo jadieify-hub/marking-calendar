@@ -70,7 +70,7 @@ public sealed class AppBootstrapperTests
         using var fileLock = locked ? File.Open(fixture.ProductFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None) : null;
         var profile = fixture.Read<AppState>("_state");
         await fixture.InvokeAsync("LoadProductsAsync");
-        Assert.Equal(3, fixture.Read<ProductCatalog>("_productCatalog").Groups.Count);
+        Assert.Equal(4, fixture.Read<ProductCatalog>("_productCatalog").Groups.Count);
         Assert.Same(profile, fixture.Read<AppState>("_state"));
         Assert.False(fixture.Read<bool>("_hasDownloadedProducts"));
     }

@@ -16,7 +16,8 @@ public sealed record ProductGroupViewModel(
     string? RenamedFrom = null,
     bool IsCompleted = false,
     bool HasGoodsPage = true,
-    string? GoodsUrl = null);
+    string? GoodsUrl = null,
+    string? GroupUrl = null);
 public sealed record ProductCatalogViewModel(ProductCatalog Catalog, string Kind, string Message);
 public sealed record GroupSuggestionViewModel(
     string Key,

@@ -1,4 +1,4 @@
-"""Offline checks for the three actual ЧЗ layouts and safe publication."""
+"""Offline checks for the supported actual ЧЗ layouts and safe publication."""
 import json
 import io
 from contextlib import redirect_stdout, redirect_stderr
@@ -52,6 +52,16 @@ class ProductTests(unittest.TestCase):
             products.parse_group("cosmetics", broken, {})
         with self.assertRaises(ValueError):
             products.parse_group("grocery", html("grocery").replace("—", "", 1), {})
+
+    def test_children_keeps_shared_okpd_and_exclusions_outside_table(self):
+        group = products.parse_group("children", html("children"), {})
+        self.assertEqual(4, len(group["rows"]))
+        self.assertTrue(all(row["okpd2Text"] == "32.40" for row in group["rows"]))
+        self.assertIn("до 14 лет", group["rows"][0]["sourceName"])
+        self.assertIn("воздушных шаров", group["conditions"])
+        self.assertIn("приложении 1", group["conditions"])
+        with self.assertRaises(ValueError):
+            products.parse_group("children", html("children").replace("воздушных шаров", ""), {})
 
     def test_excluded_code_is_a_glossary_entry_not_an_extra_product(self):
         meaning = {"code": "3307410000", "name": "Благовония", "searchTerms": [],

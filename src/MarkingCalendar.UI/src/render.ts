@@ -1303,7 +1303,7 @@ class TimelineRenderer implements MountedApp {
     const dialog = this.state.dialog;
     switch (dialog?.kind) {
       case "profile": return JSON.stringify([dialog, model.profile, model.groups]);
-      case "events": return JSON.stringify([dialog, model.events.filter(event => dialog.eventIds.includes(event.id)), model.categories, model.groups]);
+      case "events": return JSON.stringify([dialog, model.events.filter(event => dialog.eventIds.includes(event.id)), model.categories, model.groups, model.products]);
       case "about": return JSON.stringify([dialog, model.about]);
       case "support": return JSON.stringify([dialog, model.about.supportUrl]);
       case "products": return JSON.stringify([dialog, model.products]);
@@ -1462,7 +1462,7 @@ class TimelineRenderer implements MountedApp {
   ): void {
     const productGroup = this.requireModel().groups.find((group) => group.key === normalize(card.group));
     const catalogGroup = this.requireModel().products?.catalog.groups.find((group) =>
-      productGroup?.goodsUrl?.includes(`/${group.id}/`) || normalize(group.name) === productGroup?.key);
+      productGroup?.goodsUrl?.includes(`/${group.id}/`) || normalize(group.name) === normalize(card.group));
     const dialog = document.createElement("section");
     dialog.className = "dialog event-dialog";
     dialog.setAttribute("role", "dialog");
@@ -1515,25 +1515,59 @@ class TimelineRenderer implements MountedApp {
         source.dataset.sourceEventId = event.id;
         source.addEventListener("click", () => this.send({ type: "openExternal", url: event.url ?? "" }));
         actions.append(source);
-        if (productGroup?.hasGoodsPage !== false && productGroup?.goodsUrl) {
-          const goods = actionButton(catalogGroup ? "Какие товары входят" : "Перечень не встроен — открыть на сайте ЧЗ");
-          goods.dataset.goodsEventId = event.id;
-          goods.addEventListener("click", () => {
-            if (!catalogGroup) {
-              this.send({ type: "openExternal", url: productGroup.goodsUrl ?? "" });
-              return;
-            }
-            this.state.productsGroupId = catalogGroup.id;
-            this.state.dialog = { kind: "products" };
-            this.renderOverlay(eventOpener);
-          });
-          actions.append(goods);
-        }
         article.append(actions);
       }
       list.append(article);
     }
-    dialog.append(header, list);
+    dialog.append(header);
+    const groupActions = document.createElement("div");
+    groupActions.className = "drawer-group-actions";
+    const groupUrl = productGroup?.groupUrl ?? (catalogGroup ? new URL("../", catalogGroup.sourceUrl).href : null);
+    if (groupUrl) {
+      const groupPage = actionButton("Страница группы на ЧЗ");
+      groupPage.dataset.groupPage = "";
+      groupPage.addEventListener("click", () => this.send({ type: "openExternal", url: groupUrl }));
+      groupActions.append(groupPage);
+    }
+    if (!catalogGroup && productGroup?.hasGoodsPage !== false && productGroup?.goodsUrl) {
+      const goods = actionButton("Перечень товаров на ЧЗ");
+      goods.dataset.goodsEventId = events[0]?.id ?? "";
+      goods.addEventListener("click", () => this.send({ type: "openExternal", url: productGroup.goodsUrl! }));
+      groupActions.append(goods);
+    }
+    if (groupActions.childElementCount) dialog.append(groupActions);
+    if (catalogGroup) {
+      const included = document.createElement("section");
+      included.className = "event-products";
+      const heading = document.createElement("h3");
+      heading.textContent = "Какие товары входят";
+      const names = document.createElement("ul");
+      names.className = "event-product-names";
+      for (const row of catalogGroup.rows) {
+        for (const name of row.sourceName.split(/;\s*/).filter(Boolean)) {
+          const item = document.createElement("li");
+          item.textContent = name;
+          names.append(item);
+        }
+      }
+      included.append(heading, names);
+      if (catalogGroup.conditions) included.append(productText("Условия и исключения", catalogGroup.conditions));
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "Коды и подробности по источнику";
+      details.append(summary);
+      for (const row of catalogGroup.rows) details.append(renderProductRow(row, "", (url) => this.send({ type: "openExternal", url })));
+      const source = actionButton("Перечень на сайте ЧЗ");
+      source.addEventListener("click", () => this.send({ type: "openExternal", url: catalogGroup.sourceUrl }));
+      details.append(source);
+      included.append(details);
+      const checked = document.createElement("p");
+      checked.className = "products-dates";
+      checked.textContent = `Источник проверен: ${formatLocalDateTime(catalogGroup.checkedAt)}`;
+      included.append(checked);
+      dialog.append(included);
+    }
+    dialog.append(list);
     const controller = this.openOverlay(dialog, eventOpener, close, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);
   }
@@ -1636,7 +1670,7 @@ class TimelineRenderer implements MountedApp {
       if (results.childElementCount === 0) {
         const empty = document.createElement("p");
         empty.className = "products-empty";
-        empty.textContent = "Ничего не найдено в загруженных трёх группах. Это не означает отсутствие требований Честного Знака.";
+        empty.textContent = "Ничего не найдено в загруженных перечнях. Это не означает отсутствие требований Честного Знака.";
         results.append(empty);
       }
     };

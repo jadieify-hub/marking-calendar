@@ -85,7 +85,8 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
                     renamedRecently ? groupNovelty?.RenamedFrom : null,
                     mappedGroup?.IsCompleted ?? false,
                     mappedGroup?.GoodsPath is not false,
-                    goodsUrl);
+                    goodsUrl,
+                    mappedGroup is null ? null : new Uri(new Uri("https://честныйзнак.рф"), mappedGroup.Link).AbsoluteUri);
             })
             .OrderBy(group => group.IsCompleted)
             .ThenBy(group => group.Name, StringComparer.Create(Russian, ignoreCase: true))

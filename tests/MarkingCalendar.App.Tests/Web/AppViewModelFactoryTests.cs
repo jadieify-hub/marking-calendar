@@ -176,7 +176,7 @@ public sealed class AppViewModelFactoryTests
     [Fact]
     public void Create_ResolvesGoodsUrlFromBundledMapAndKeepsDownloadedDisableAuthoritative()
     {
-        var item = Event("1", "Товары для дома") with { Url = new Uri("https://честныйзнак.рф/business/projects/homeware/") };
+        var item = Event("1", "Товары для дома") with { Url = null };
         var snapshot = CalendarSnapshot.Create(new DateTimeOffset(2026, 9, 2, 7, 0, 0, TimeSpan.Zero), new Uri("https://example.test"), [item]);
         var downloaded = new GroupMap(2, "2026-09-02", [new("home", "Для дома")],
             [new(item.Group, "/business/projects/homeware/", ["home"], GoodsPath: false)]);
@@ -189,6 +189,7 @@ public sealed class AppViewModelFactoryTests
         var group = Assert.Single(result.Groups);
         Assert.False(group.HasGoodsPage);
         Assert.Null(group.GoodsUrl);
+        Assert.Equal(new Uri("https://честныйзнак.рф/business/projects/homeware/").AbsoluteUri, group.GroupUrl);
     }
 
     [Fact]
