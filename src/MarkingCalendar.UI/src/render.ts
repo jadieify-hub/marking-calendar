@@ -1519,7 +1519,7 @@ class TimelineRenderer implements MountedApp {
       }
       list.append(article);
     }
-    dialog.append(header);
+    dialog.append(header, list);
     const groupActions = document.createElement("div");
     groupActions.className = "drawer-group-actions";
     const groupUrl = productGroup?.groupUrl ?? (catalogGroup ? new URL("../", catalogGroup.sourceUrl).href : null);
@@ -1567,7 +1567,6 @@ class TimelineRenderer implements MountedApp {
       included.append(checked);
       dialog.append(included);
     }
-    dialog.append(list);
     const controller = this.openOverlay(dialog, eventOpener, close, () => { this.state.dialog = null; });
     close.addEventListener("click", controller.requestClose);
   }
