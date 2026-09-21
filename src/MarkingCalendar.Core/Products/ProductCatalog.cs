@@ -2,8 +2,9 @@ namespace MarkingCalendar.Core.Products;
 
 public sealed record ProductCodeMeaning(string Code, string Name, IReadOnlyList<string> SearchTerms, string SourceUrl, string SourceContext);
 public sealed record ProductListRow(string Section, string SourceName, string TnvedText, string Okpd2Text, string Conditions, IReadOnlyList<ProductCodeMeaning> Meanings);
+public sealed record ProductScope(IReadOnlyList<string> Names, string Description, string SourceUrl);
 public sealed record ProductListGroup(string Id, string Name, string SourceUrl, string SourceHeading, string SourceHash, string Revision,
-    DateTimeOffset ChangedAt, DateTimeOffset CheckedAt, string Conditions, IReadOnlyList<string> Examples, IReadOnlyList<ProductListRow> Rows);
+    DateTimeOffset ChangedAt, DateTimeOffset CheckedAt, string Conditions, IReadOnlyList<string> Examples, IReadOnlyList<ProductListRow> Rows, ProductScope? Scope = null);
 public sealed record ProductCatalog(int SchemaVersion, string Revision, IReadOnlyList<ProductListGroup> Groups);
 
 public sealed class ProductCatalogValidationException(IReadOnlyList<string> errors) : Exception(string.Join(' ', errors))
@@ -23,7 +24,7 @@ public static class ProductCatalogValidator
     {
         if (catalog is null) return ["Товарный справочник содержит пустой JSON."];
         var errors = new List<string>();
-        if (catalog.SchemaVersion != 1) errors.Add($"Версия схемы товарного справочника не поддерживается: {catalog.SchemaVersion}.");
+        if (catalog.SchemaVersion != 2) errors.Add($"Версия схемы товарного справочника не поддерживается: {catalog.SchemaVersion}.");
         Required(catalog.Revision, "ревизия справочника", errors);
         if (catalog.Groups is null || catalog.Groups.Count == 0) errors.Add("В справочнике отсутствуют группы.");
         var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -35,6 +36,13 @@ public static class ProductCatalogValidator
             Required(group.SourceHeading, "заголовок источника", errors); Required(group.SourceHash, "хеш источника", errors);
             Required(group.Revision, "ревизия группы", errors);
             if (group.Conditions is null || group.Examples is null || group.Examples.Any(item => item is null)) errors.Add("Не заданы условия или примеры группы.");
+            if (group.Scope is { } scope)
+            {
+                if (scope.Names is null || scope.Names.Any(string.IsNullOrWhiteSpace) || scope.Description is null
+                    || (scope.Names.Count == 0 && string.IsNullOrWhiteSpace(scope.Description))) errors.Add("Не задано содержание товарной группы.");
+                if (!Allowed(scope.SourceUrl, "xn--80ajghhoc2aj1c8b.xn--p1ai", "/business/projects/")) errors.Add("Источник содержания группы должен вести на Честный знак.");
+            }
+            else errors.Add("Не задано содержание товарной группы.");
             if (group.Rows is null || group.Rows.Count == 0) errors.Add("В группе отсутствуют товарные строки.");
             if (!Allowed(group.SourceUrl, "xn--80ajghhoc2aj1c8b.xn--p1ai", "/business/projects/")) errors.Add($"Источник группы «{group.Name}» должен вести на Честный знак.");
             if (group.ChangedAt == default || group.CheckedAt == default || group.ChangedAt > group.CheckedAt) errors.Add($"У группы «{group.Name}» некорректны времена проверки.");

@@ -103,12 +103,12 @@ function Read-PublicProducts {
 function Test-ProductsPayload([string]$Content) {
     try {
         $productsPayload = $Content | ConvertFrom-Json
-        if ([int]$productsPayload.schemaVersion -ne 1 -or
+        if ([int]$productsPayload.schemaVersion -ne 2 -or
             [string]::IsNullOrWhiteSpace([string]$productsPayload.revision) -or
             $productsPayload.revision -isnot [string] -or
             $null -eq $productsPayload.groups -or $productsPayload.groups -isnot [System.Array] -or
             @($productsPayload.groups).Count -eq 0) {
-            throw 'ожидались schemaVersion 1, revision и непустой groups'
+            throw 'ожидались schemaVersion 2, revision и непустой groups'
         }
         $groupIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
         foreach ($group in @($productsPayload.groups)) {
@@ -123,7 +123,7 @@ function Test-ProductsPayload([string]$Content) {
                     throw "в группе отсутствует обязательное поле $property"
                 }
             }
-            foreach ($property in @('conditions', 'examples', 'rows')) {
+            foreach ($property in @('conditions', 'examples', 'rows', 'scope')) {
                 if ($group.PSObject.Properties.Name -notcontains $property -or $null -eq $group.$property) {
                     throw "в группе отсутствует обязательное поле $property"
                 }
@@ -138,6 +138,22 @@ function Test-ProductsPayload([string]$Content) {
                 throw "группа $($group.id) не содержит строк"
             }
             $groupUri = [uri]$group.sourceUrl
+            if ($group.PSObject.Properties.Name -contains 'scope' -and $null -ne $group.scope) {
+                $scope = $group.scope
+                if ($scope.PSObject.Properties.Name -notcontains 'names' -or $scope.names -isnot [System.Array] -or
+                    $scope.PSObject.Properties.Name -notcontains 'description' -or $scope.description -isnot [string] -or
+                    $scope.PSObject.Properties.Name -notcontains 'sourceUrl' -or $scope.sourceUrl -isnot [string] -or
+                    @($scope.names | Where-Object { $_ -isnot [string] -or [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
+                    (@($scope.names).Count -eq 0 -and [string]::IsNullOrWhiteSpace($scope.description))) {
+                    throw "некорректное содержание группы $($group.id)"
+                }
+                $scopeUri = [uri]$scope.sourceUrl
+                if (-not $scopeUri.IsAbsoluteUri -or $scopeUri.Scheme -ne 'https' -or
+                    $scopeUri.IdnHost -ne 'xn--80ajghhoc2aj1c8b.xn--p1ai' -or
+                    -not $scopeUri.AbsolutePath.StartsWith('/business/projects/', [System.StringComparison]::Ordinal)) {
+                    throw "источник содержания группы $($group.id) не ведёт на Честный знак"
+                }
+            }
             if ($groupUri.Scheme -ne 'https' -or
                 $groupUri.IdnHost -ne 'xn--80ajghhoc2aj1c8b.xn--p1ai' -or
                 -not $groupUri.AbsolutePath.StartsWith('/business/projects/', [System.StringComparison]::Ordinal)) {

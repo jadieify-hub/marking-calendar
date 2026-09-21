@@ -3,11 +3,13 @@ import bundledProducts from "../../MarkingCalendar.App/Resources/bundled-product
 
 export const developmentFixture: AppViewModel = {
   updatedAt: "02.09.2026, 10:45",
-  eventCount: 3,
+  eventCount: 5,
   today: "2026-09-02",
   groups: [
     { key: "детские игрушки", name: "Детские игрушки", eventCount: 1, groupUrl: "https://честныйзнак.рф/business/projects/children/", goodsUrl: "https://честныйзнак.рф/business/projects/children/marking_goods/" },
     { key: "молочная продукция", name: "Молочная продукция", eventCount: 2 },
+    { key: "спортивное питание", name: "Спортивное питание", eventCount: 1, groupUrl: "https://честныйзнак.рф/business/projects/sportpit/" },
+    { key: "морепродукты (икра)", name: "Морепродукты (икра)", eventCount: 1, groupUrl: "https://честныйзнак.рф/business/projects/caviar/" },
   ],
   groupSuggestions: [],
   profile: { roles: [], sectors: [], selectedRoles: [], selectedSectors: [], manualGroups: {}, roleCategories: [], onboardingCompleted: true },
@@ -22,6 +24,8 @@ export const developmentFixture: AppViewModel = {
     { id: "ban", label: "Запрет оборота", color: "#cf4842", colorDark: "#ec7069" },
   ],
   events: [
+    { id: "demo-sportpit", start: "2026-09-19", end: null, period: "с 19 сентября 2026", group: "Спортивное питание", type: "Демонстрация карточки", typeLabel: "Маркировка", stage: "Проверка товарного перечня", description: "Демонстрационная запись интерфейса; дата не является сроком маркировки.", url: null, category: "marking", recentChange: null, moveCount: 0, history: [] },
+    { id: "demo-caviar", start: "2026-09-19", end: null, period: "с 19 сентября 2026", group: "Морепродукты (икра)", type: "Демонстрация карточки", typeLabel: "Маркировка", stage: "Проверка товарного перечня", description: "Демонстрационная запись интерфейса; дата не является сроком маркировки.", url: null, category: "marking", recentChange: null, moveCount: 0, history: [] },
     { id: "demo-1", start: "2026-09-01", end: null, period: "с 1 сентября 2026", group: "Молочная продукция", type: "Обязательная маркировка", typeLabel: "Маркировка", stage: "Маркировка становится обязательной для новых категорий", description: "Демонстрационная запись интерфейса.", url: "https://честныйзнак.рф/", category: "marking", recentChange: null, moveCount: 0, history: [] },
     { id: "demo-2", start: "2026-10-01", end: null, period: "с 1 октября 2026", group: "Детские игрушки", type: "Розничная продажа", typeLabel: "Розничная продажа", stage: "Старт передачи сведений через кассу", description: "Демонстрационная запись интерфейса.", url: null, category: "retail", recentChange: { kind: "moved", checkedAt: "2026-09-02T10:45:00+03:00", previousStart: "2026-09-15", previousEnd: null, previousStage: null, previousDescription: null, changedFields: [] }, moveCount: 2, history: [{ kind: "moved", checkedAt: "2026-09-02T10:45:00+03:00", previousStart: "2026-09-15", previousEnd: null, previousStage: null, previousDescription: null, changedFields: [] }] },
     { id: "demo-3", start: "2026-11-01", end: null, period: "с 1 ноября 2026", group: "Молочная продукция", type: "Партионный учёт по ЭДО", typeLabel: "Партионный учёт", stage: "Вводится партионный учёт", description: "Демонстрационная запись интерфейса.", url: null, category: "edo", recentChange: { kind: "added", checkedAt: "2026-09-02T10:45:00+03:00", previousStart: null, previousEnd: null, previousStage: null, previousDescription: null, changedFields: [] }, moveCount: 0, history: [{ kind: "added", checkedAt: "2026-09-02T10:45:00+03:00", previousStart: null, previousEnd: null, previousStage: null, previousDescription: null, changedFields: [] }] },

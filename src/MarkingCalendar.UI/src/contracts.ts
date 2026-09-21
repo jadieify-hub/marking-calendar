@@ -41,6 +41,7 @@ export interface ProductListRow {
 }
 
 export interface ProductListGroup {
+  readonly scope?: { readonly names: ReadonlyArray<string>; readonly description: string; readonly sourceUrl: string } | null;
   readonly id: string;
   readonly name: string;
   readonly sourceUrl: string;

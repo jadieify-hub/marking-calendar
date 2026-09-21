@@ -120,6 +120,18 @@ try {
         throw 'Null внутри массива справочника не должен попадать во встроенную версию.'
     }
     $writtenMetadata = [System.IO.File]::ReadAllText($metadata, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($invalidCase in @('legacy', 'scope')) {
+        $invalidProducts = $productsPayload | ConvertFrom-Json
+        if ($invalidCase -eq 'legacy') { $invalidProducts.schemaVersion = 1 }
+        else { $invalidProducts.groups[0].scope.names = $null }
+        [System.IO.File]::WriteAllText((Join-Path $publicRoot 'products.json'), ($invalidProducts | ConvertTo-Json -Depth 20), [System.Text.UTF8Encoding]::new($false))
+        & $refreshScript -FromPublic -PublicDataPath $publicRoot -ReferenceTime $generatedAt.AddDays(7) `
+            -DestinationPath $destination -MetadataPath $metadata -HistoryDestinationPath $history `
+            -GroupsDestinationPath $groups -ProductsDestinationPath $products
+        if ([System.IO.File]::ReadAllText($products, [System.Text.Encoding]::UTF8) -ne $preservedProducts) {
+            throw "Старый каталог или повреждённый scope не должен затирать встроенный: $invalidCase"
+        }
+    }
     if ([DateTimeOffset]$writtenMetadata.retrievedAt -ne $generatedAt) {
         throw 'В метаданные не перенесено время публичного манифеста.'
     }

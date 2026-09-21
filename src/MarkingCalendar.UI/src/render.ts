@@ -7,6 +7,7 @@ import type {
   ChangeCountsViewModel,
   ChangeSummaryViewModel,
   CommandSink,
+  ProductListGroup,
   ProductListRow,
   ThemePreference,
 } from "./contracts";
@@ -1539,17 +1540,7 @@ class TimelineRenderer implements MountedApp {
     if (catalogGroup) {
       const included = document.createElement("section");
       included.className = "event-products";
-      const heading = document.createElement("h3");
-      heading.textContent = "Какие товары входят";
-      const names = document.createElement("ul");
-      names.className = "event-product-names";
-      const uniqueNames = new Set(catalogGroup.rows.flatMap((row) => row.sourceName.split(/;\s*/).filter(Boolean)));
-      for (const name of uniqueNames) {
-        const item = document.createElement("li");
-        item.textContent = name;
-        names.append(item);
-      }
-      included.append(heading, names);
+      included.append(renderProductScope(catalogGroup, (url) => this.send({ type: "openExternal", url })));
       if (catalogGroup.conditions) included.append(productText("Условия и исключения", catalogGroup.conditions));
       const details = document.createElement("details");
       const summary = document.createElement("summary");
@@ -1640,9 +1631,11 @@ class TimelineRenderer implements MountedApp {
       const query = this.state.productsQuery;
       const visibleGroups = model.products!.catalog.groups.filter((group) => !this.state.productsGroupId || group.id === this.state.productsGroupId);
       for (const group of visibleGroups) {
-        const rows = group.rows.filter((row) => productRowMatches(row, query));
+        const codeQuery = isProductCodeQuery(query);
+        const rows = codeQuery ? group.rows.filter((row) => productRowMatches(row, query)) : group.rows;
         const examples = group.examples.filter((example) => textMatches(example, query));
-        if (query && rows.length === 0 && examples.length === 0) continue;
+        const nameMatches = [group.name, ...(group.scope?.names ?? [])].some((name) => textMatches(name, query));
+        if (query && (codeQuery ? rows.length === 0 : !nameMatches && examples.length === 0)) continue;
         const section = document.createElement("section");
         section.className = "products-group";
         const name = document.createElement("h3");
@@ -1655,18 +1648,15 @@ class TimelineRenderer implements MountedApp {
         const source = actionButton("Открыть на сайте ЧЗ");
         source.addEventListener("click", () => this.send({ type: "openExternal", url: group.sourceUrl }));
         section.append(name, sourceHeading, dates, source);
+        section.append(renderProductScope(group, (url) => this.send({ type: "openExternal", url })));
         if (group.conditions) section.append(productText("Общие условия", group.conditions));
-        if (examples.length > 0) {
-          const block = document.createElement("div");
-          block.className = "products-examples";
-          const exampleTitle = document.createElement("h4");
-          exampleTitle.textContent = "Примеры товаров по данным ЧЗ";
-          const list = document.createElement("p");
-          list.textContent = examples.join("; ");
-          block.append(exampleTitle, list);
-          section.append(block);
-        }
-        for (const row of rows) section.append(renderProductRow(row, query, (url) => this.send({ type: "openExternal", url })));
+        const details = document.createElement("details");
+        details.open = codeQuery;
+        const summary = document.createElement("summary");
+        summary.textContent = "Коды и подробности по источнику";
+        details.append(summary);
+        for (const row of rows) details.append(renderProductRow(row, query, (url) => this.send({ type: "openExternal", url })));
+        section.append(details);
         results.append(section);
       }
       if (results.childElementCount === 0) {
@@ -2392,6 +2382,44 @@ function productText(title: string, text: string): HTMLElement {
   return block;
 }
 
+function renderProductScope(group: ProductListGroup, openExternal: (url: string) => void): HTMLElement {
+  const block = document.createElement("div");
+  block.className = "product-scope";
+  const heading = document.createElement("h3");
+  heading.textContent = "Какие товары входят";
+  block.append(heading);
+  if (!group.scope) {
+    const unavailable = document.createElement("p");
+    unavailable.textContent = "Сохранённый перечень ещё не содержит проверенных наименований товаров. Доступны исходные коды и условия ЧЗ.";
+    block.append(unavailable);
+    return block;
+  }
+  if (group.scope.description) {
+    const description = document.createElement("p");
+    description.textContent = group.scope.description;
+    block.append(description);
+  }
+  const names = document.createElement("ul");
+  names.className = "event-product-names";
+  for (const name of group.scope.names) {
+    const item = document.createElement("li");
+    item.textContent = name;
+    names.append(item);
+  }
+  if (names.childElementCount) block.insertBefore(names, heading.nextSibling);
+  if (group.examples.length) {
+    const examples = productText("Примеры товаров по данным ЧЗ", group.examples.join("; "));
+    examples.className = "products-examples";
+    block.append(examples);
+  }
+  if (group.scope.sourceUrl !== group.sourceUrl) {
+    const source = actionButton("Пояснение группы на ЧЗ");
+    source.addEventListener("click", () => openExternal(group.scope!.sourceUrl));
+    block.append(source);
+  }
+  return block;
+}
+
 function renderProductRow(row: ProductListRow, query: string, openExternal: (url: string) => void): HTMLElement {
   const article = document.createElement("article");
   article.className = "product-row";
@@ -2402,7 +2430,7 @@ function renderProductRow(row: ProductListRow, query: string, openExternal: (url
   article.append(name, section);
   if (row.conditions) article.append(productText("Условия и исключения", row.conditions));
   const codes = document.createElement("details");
-  codes.open = Boolean(query);
+  codes.open = isProductCodeQuery(query);
   const summary = document.createElement("summary");
   summary.textContent = "Исходные коды и условия";
   codes.append(summary);
@@ -2414,13 +2442,14 @@ function renderProductRow(row: ProductListRow, query: string, openExternal: (url
       .some((value) => textMatches(value, query)))
     : row.meanings;
   if (visibleMeanings.length > 0) {
-    const meanings = document.createElement("div");
+    const meanings = document.createElement("details");
     meanings.className = "product-meanings";
-    const title = document.createElement("h5");
-    title.textContent = "Что означают коды";
+    meanings.open = isProductCodeQuery(query);
+    const title = document.createElement("summary");
+    title.textContent = "Справка о кодах ТН ВЭД";
     const hint = document.createElement("p");
     hint.className = "product-meanings-hint";
-    hint.textContent = "Расшифровки кодов, включая упомянутые в исключениях; применимость см. в условиях ЧЗ.";
+    hint.textContent = "Общие описания классификатора, включая упомянутые в исключениях коды. Они не являются перечнем товаров этой группы; применимость определяется условиями ЧЗ.";
     meanings.append(title, hint);
     for (const meaning of visibleMeanings) {
       const item = document.createElement("div");
@@ -2437,16 +2466,19 @@ function renderProductRow(row: ProductListRow, query: string, openExternal: (url
       item.append(text, context);
       meanings.append(item);
     }
-    article.append(meanings);
+    codes.append(meanings);
   }
   return article;
 }
 
 function productRowMatches(row: ProductListRow, query: string): boolean {
   if (!query) return true;
-  return [row.section, row.sourceName, row.tnvedText, row.okpd2Text, row.conditions,
-    ...row.meanings.flatMap((meaning) => [meaning.code, meaning.name, meaning.sourceContext, ...meaning.searchTerms])]
+  return [row.tnvedText, row.okpd2Text, row.conditions]
     .some((value) => textMatches(value, query));
+}
+
+function isProductCodeQuery(query: string): boolean {
+  return /^\d[\d\s.]*$/.test(query.trim());
 }
 
 function textMatches(value: string, query: string): boolean {

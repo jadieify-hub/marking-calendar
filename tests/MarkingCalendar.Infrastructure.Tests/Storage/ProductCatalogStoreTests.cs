@@ -38,9 +38,10 @@ public sealed class ProductCatalogStoreTests : IDisposable
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
 
-    private static ProductCatalog Catalog() => new(1, "r1", [new ProductListGroup("grocery", "Бакалея",
+    private static ProductCatalog Catalog() => new(2, "r1", [new ProductListGroup("grocery", "Бакалея",
         "https://честныйзнак.рф/business/projects/grocery/mark_goods/", "Перечень", "hash", "g1",
         new DateTimeOffset(2026, 9, 17, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 9, 18, 0, 0, 0, TimeSpan.Zero), "Условия", [],
         [new ProductListRow("Этап", "Чай", "0902", "", "", [new ProductCodeMeaning("0902", "Чай", [],
-            "https://eec.eaeunion.org/comission/department/catr/ett/", "Чай")])])]);
+            "https://eec.eaeunion.org/comission/department/catr/ett/", "Чай")])],
+        new ProductScope(["Чай"], "", "https://честныйзнак.рф/business/projects/grocery/mark_goods/"))]);
 }

@@ -48,12 +48,14 @@ const products = {
         id: "homeware", name: "Товары для дома", sourceUrl: "https://честныйзнак.рф/business/projects/homeware/marking_goods/",
         sourceHeading: "Товары для дома", sourceHash: "a", revision: "a", changedAt: "2026-09-01T10:00:00+03:00", checkedAt: "2026-09-18T10:00:00+03:00",
         conditions: "Кроме медицинских изделий", examples: ["Посуда"],
+        scope: { names: ["Предметы домашнего обихода"], description: "", sourceUrl: "https://честныйзнак.рф/business/projects/homeware/marking_goods/" },
         rows: [{ section: "Первый этап", sourceName: "Предметы домашнего обихода", tnvedText: "3924 10 000 0", okpd2Text: "", conditions: "Кроме одноразовых изделий", meanings: [{ code: "3924100000", name: "Посуда столовая", searchTerms: ["кухонная утварь"], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn39.pdf", sourceContext: "Изделия столовые и кухонные" }] }],
       },
       {
         id: "cosmetics", name: "Косметика и бытовая химия", sourceUrl: "https://честныйзнак.рф/business/projects/cosmetics/mark_goods/",
         sourceHeading: "Косметика", sourceHash: "b", revision: "b", changedAt: "2026-09-02T10:00:00+03:00", checkedAt: "2026-09-18T10:00:00+03:00",
-        conditions: "С учётом исключений", examples: ["Зубные ёршики"],
+        conditions: "С учётом исключений", examples: ["Зубные ёршики", "Шампунь"],
+        scope: { names: ["Средства для волос"], description: "", sourceUrl: "https://честныйзнак.рф/business/projects/cosmetics/mark_goods/" },
         rows: [{ section: "Средства ухода", sourceName: "Средства для волос", tnvedText: "3305, кроме 3307 41 000 0", okpd2Text: "20.42", conditions: "Кроме ароматических средств кода 3307 41 000 0", meanings: [
           { code: "3305", name: "Средства для волос", searchTerms: ["шампунь"], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn33.pdf", sourceContext: "Средства для волос" },
           { code: "3307410000", name: "Агарбатти и прочие благовония", searchTerms: [], sourceUrl: "https://eec.eaeunion.org/upload/files/catr/psn/psn33.pdf", sourceContext: "Средства для ароматизации или дезодорирования помещений, включая благовония" },
@@ -68,6 +70,34 @@ const products = {
 };
 
 describe("renderApp", () => {
+  it("does not find sports nutrition by broad tariff meanings and keeps numeric lookup available", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model, products: { ...products, catalog: bundledProducts } }, vi.fn());
+    root.querySelector<HTMLButtonElement>('[data-action="help"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-action="products"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-product-group="sportpit"]')!.click();
+    const search = root.querySelector<HTMLInputElement>('[data-products-search]')!;
+    search.value = "воды";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector(".products-results .products-group")).toBeNull();
+    search.value = "2202100000";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector(".products-results")?.textContent).toContain("Спортивное питание");
+    expect(root.querySelector(".products-results")?.textContent).toContain("СГР");
+  });
+
+  it("keeps a qualifier attached to the whole product name instead of splitting at semicolons", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model,
+      products: { ...products, catalog: bundledProducts },
+      groups: [{ key: "детские игрушки", name: "Детские игрушки", eventCount: 1 }],
+      events: [{ ...model.events[0], group: "Детские игрушки" }],
+    }, vi.fn());
+    root.querySelector<HTMLButtonElement>("[data-card-key]")!.click();
+    expect(root.querySelectorAll(".event-product-names li")).toHaveLength(4);
+    expect(root.querySelector(".event-product-names li")?.textContent).toContain("до 14 лет");
+  });
+
   it("searches catalog names, codes and group examples without hiding example-only matches", () => {
     const root = document.createElement("div");
     renderApp(root, { ...model, products }, vi.fn());

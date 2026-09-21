@@ -18,6 +18,9 @@ jobs:
     runs-on: [self-hosted, linux, x64, marking-calendar]
     # 50 sources, each with a 30-second network timeout; leave time to report failures.
     timeout-minutes: 35
+    outputs:
+      check_exit_code: ${{ steps.check.outputs.exit_code }}
+      source_failure_only: ${{ steps.check.outputs.exit_code == '2' && steps.publish.outcome == 'success' && steps.diagnostics.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
@@ -43,6 +46,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish verified groups
+        id: publish
         if: steps.check.outputs.exit_code == '0' || steps.check.outputs.exit_code == '2'
         shell: bash
         run: |
@@ -53,6 +57,7 @@ jobs:
           git -C data push origin HEAD:data
 
       - name: Save check diagnostics
+        id: diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -69,20 +74,35 @@ jobs:
 
   notify:
     needs: publish
-    if: always() && needs.publish.result == 'failure'
+    if: always() && (needs.publish.result == 'failure' || needs.publish.result == 'success')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       actions: read
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: data
+          path: data
       - name: Download source diagnostics
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run download "$GITHUB_RUN_ID" --name products-check --dir .
-      - name: Notify maintainer on failure
+      - name: Notify maintainer of failures and recoveries
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PRODUCTS_JOB_RESULT: ${{ needs.publish.result }}
+          PRODUCTS_CHECK_EXIT_CODE: ${{ needs.publish.outputs.check_exit_code }}
+          PRODUCTS_SOURCE_FAILURE_ONLY: ${{ needs.publish.outputs.source_failure_only }}
         run: python3 build/products_alert.py
+      - name: Save delivered notification state
+        shell: bash
+        run: |
+          if [ ! -f data/products-alert-state.json ]; then exit 0; fi
+          git -C data add -- products-alert-state.json
+          if git -C data diff --cached --quiet; then exit 0; fi
+          git -C data -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'data: состояние уведомлений о товарных перечнях'
+          git -C data push origin HEAD:data

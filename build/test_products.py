@@ -21,6 +21,8 @@ def fetch(url):
     group = url.split("/projects/")[1].split("/")[0]
     if group == "chemistry":
         raise OSError("HTTP 404: source unavailable")
+    if url.endswith("/faq/"):
+        return (FIXTURES.parent / "product-scopes" / f"{group}.html").read_text(encoding="utf-8")
     return html(group)
 
 
@@ -64,6 +66,31 @@ class ProductTests(unittest.TestCase):
     def test_code_lookup_preserves_real_spacing_and_rejects_long_numbers(self):
         self.assertEqual(["2202991100", "293629000", "1604310000"],
                          products.codes("2202 99110 0, 2936 29 000; 1604310000; 123456789012"))
+
+    def test_product_scope_does_not_promote_classifier_labels_to_goods(self):
+        sport = products.parse_group("sportpit", html("sportpit"), {})
+        self.assertEqual([], sport["scope"]["names"])
+        self.assertIn("СГР", sport["scope"]["description"])
+        caviar = products.parse_group("caviar", html("caviar"), {})
+        self.assertEqual(["Икра осетровых рыб", "Икра лососевых рыб."], caviar["scope"]["names"])
+        self.assertTrue(any("молоки" in row["sourceName"] for row in caviar["rows"]))
+        toys = products.parse_group("children", html("children"), {})
+        self.assertIn("до 14 лет", toys["scope"]["names"][0])
+        self.assertEqual(4, len(toys["scope"]["names"]))
+        chairs = products.parse_group("wheelchairs", html("wheelchairs"), {})
+        self.assertEqual(2, len(chairs["scope"]["names"]))
+        pipes = products.parse_group("polymerpipes", html("polymerpipes"), {})
+        self.assertTrue(all("\n" in name for name in pipes["scope"]["names"]))
+        cigarettes = products.parse_group("electronic_cigarettes", html("electronic_cigarettes"), {})
+        self.assertEqual(1, len(cigarettes["scope"]["names"]))
+        self.assertNotIn("Смартфоны", cigarettes["scope"]["names"][0])
+        for group in products.SCOPE_QUESTIONS:
+            source = fetch(f"https://{products.CHZ_HOST}/business/projects/{group}/faq/")
+            scope = products.parse_scope_faq(group, source)
+            self.assertTrue(scope["description"])
+            self.assertNotIn("воды", " ".join(scope["names"]).lower())
+            with self.assertRaises(ValueError):
+                products.parse_scope_faq(group, source.replace("qa-block__question", "missing"))
 
     def test_missing_card_codes_or_source_section_is_not_partial_success(self):
         for group, marker in (("water", "marking-retractable-block__content-code"),

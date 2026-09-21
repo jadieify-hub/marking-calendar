@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 CHZ_HOST = "xn--80ajghhoc2aj1c8b.xn--p1ai"
 HEADINGS = {"homeware": "товаров для дома", "cosmetics": "Виды косметики", "grocery": "Виды бакалейной", "children": "виды товаров для детей"}
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+SCOPE_QUESTIONS = {
+    "sportpit": "Какие товары подлежат обязательной маркировке?",
+    "fur": "Какие товары из меха следует маркировать?",
+    "beverages": "Нужно ли маркировать напитки с коротким сроком годности в потребительской упаковке, которые продаются на вынос, а также используются для доставки клиентам при онлайн-заказе?",
+}
 
 
 class Node:
@@ -325,12 +330,85 @@ def parse_group(group_id, html, meanings):
         raise ValueError("Не найдены условия и исключения бакалеи")
     if group_id == "children" and any(part not in conditions for part in ("кодом ТН ВЭД", "кодом ОКПД 2", "воздушных шаров", "велосипедов трехколесных", "азартных игр", "ремесленников", "приложении 1")):
         raise ValueError("Не найдены исключения для детских игрушек")
-    return {"sourceHeading": heading, "conditions": conditions, "examples": examples, "rows": rows}
+    # Classification labels are not necessarily goods in this group. Keep them
+    # unchanged in rows; the UI uses the separately verified scope for goods.
+    names = list(dict.fromkeys(row["sourceName"] for row in rows))
+    description = ""
+    if group_id in ("sportpit", "beverages", "fur"):
+        names = []  # These source tables contain codes, not product names.
+        description = "Источник публикует коды без отдельных наименований товаров. По расшифровкам кодов нельзя восстановить точный список товаров этой группы."
+        if group_id == "sportpit":
+            if "СГР" not in conditions or "областью применения «Спортивное питание»" not in conditions:
+                raise ValueError("Исчезло условие СГР для спортивного питания")
+            description = conditions + "\n\n" + description
+    elif group_id == "caviar":
+        if "Подлежит маркировке только икра осетровых" not in conditions or "остальные продукты" not in conditions:
+            raise ValueError("Изменилось ограничение перечня икры: требуется проверка охвата")
+        names = list(dict.fromkeys(row["sourceName"] for row in rows if row["okpd2Text"] and not row["tnvedText"]))
+        if len(names) != 2 or any(not name.startswith("Икра ") for name in names):
+            raise ValueError("Изменились наименования икры в ОКПД2")
+    elif group_id == "wheelchairs":
+        names = list(dict.fromkeys(row["sourceName"] for row in rows if row["tnvedText"]))
+        if not names or any("Кресла-коляски" not in name for name in names):
+            raise ValueError("Изменилось описание кресел-колясок")
+    elif group_id == "polymerpipes":
+        if any(not row["section"] for row in rows):
+            raise ValueError("Исчезло назначение полимерной продукции")
+        names = list(dict.fromkeys(row["section"] + "\n" + row["sourceName"] for row in rows))
+    elif group_id == "brdrinks":
+        # A qualifier on the source's child-food row is not a standalone product.
+        names = [name for name in names if not name.startswith("В части ")]
+        description = conditions.split("\n")[1]
+        if "растворимые завариваемые напитки" not in description:
+            raise ValueError("Изменилось назначение растворимых напитков")
+    elif group_id == "electronic_cigarettes":
+        names = [row["sourceName"] for row in rows if row["section"].startswith("IV этап")]
+        if not names or any("Сигареты электронные" not in name for name in names):
+            raise ValueError("Изменилось содержание этапа электронных сигарет")
+        description = "\n".join(dict.fromkeys(row["section"] for row in rows if row["section"].startswith("IV этап")))
+    return {"sourceHeading": heading, "conditions": conditions, "examples": examples, "rows": rows,
+            "scope": {"names": names, "description": description}}
 
 
 def digest(value):
     raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def parse_scope_faq(group_id, html):
+    blocks = [n for n in matching(Page(html).root, "qa-block")
+              if first_text(n, "qa-block__question") == SCOPE_QUESTIONS[group_id]]
+    if len(blocks) != 1:
+        raise ValueError("Не найдено однозначное пояснение товарной группы в FAQ")
+    answers = matching(blocks[0], "qa-block__answer")
+    if len(answers) != 1:
+        raise ValueError("Исчез ответ о составе товарной группы")
+    paragraphs = [text(n) for n in answers[0].children if isinstance(n, Node) and n.tag == "p" and text(n)]
+    names = []
+    if group_id == "sportpit":
+        definitions = [p for p in paragraphs if p.startswith("Для спортивного питания")]
+        requirements = [p for p in paragraphs if p.startswith("В целях определения продукции")]
+        if len(definitions) != 1 or len(requirements) != 1 or "СГР" not in requirements[0]:
+            raise ValueError("Изменилось определение спортивного питания или условие СГР")
+        quoted = re.search("«([^»]+)»", definitions[0])
+        if not quoted or "для питания спортсменов" not in quoted.group(1):
+            raise ValueError("Исчезло назначение спортивного питания")
+        names = [quoted.group(1)]
+        description = requirements[0] + "\n\nЧЗ приводит определение категории и коды, но не публикует здесь подробный список видов спортивного питания. Общие названия кодов не заменяют такой список."
+    elif group_id == "fur":
+        if len(paragraphs) != 3 or any(part not in "\n".join(paragraphs) for part in ("подкладку", "отделкой", "головные уборы")):
+            raise ValueError("Изменились назначение или исключения изделий из меха")
+        title = re.search(r"Следует маркировать (.+?) по товарной позиции", paragraphs[0])
+        if not title:
+            raise ValueError("Исчезло наименование изделий из меха")
+        names = [title.group(1)]
+        description = "\n\n".join(paragraphs)
+    else:
+        if len(paragraphs) != 1 or "потребительскую упаковку" not in paragraphs[0] or "ОКПД2" not in paragraphs[0]:
+            raise ValueError("Изменилось пояснение безалкогольных напитков")
+        description = paragraphs[0] + "\n\nВ перечне ЧЗ указаны коды без отдельных наименований напитков. Подробного списка названий в загруженном источнике нет."
+    return {"names": names, "description": description,
+            "sourceUrl": f"https://{CHZ_HOST}/business/projects/{group_id}/faq/"}
 
 
 def fetch_page(url):
@@ -353,9 +431,11 @@ def check(data_dir, dry_run=False):
     directory = Path(data_dir)
     path = directory / "products.json"
     previous = json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else None
-    if previous is not None and (previous.get("schemaVersion") != 1 or not isinstance(previous.get("groups"), list)):
+    if previous is not None and (previous.get("schemaVersion") not in (1, 2) or not isinstance(previous.get("groups"), list)):
         raise ValueError("Предыдущий справочник повреждён")
-    before = {group["id"]: group for group in previous["groups"]} if previous else {}
+    # Schema 1 has no verified goods scope. It may be read during migration,
+    # but its ambiguous rows cannot be published as a schema 2 fallback.
+    before = {group["id"]: group for group in previous["groups"] if group.get("scope")} if previous else {}
     meanings_path = ROOT / "assets/products/names.json"
     meanings = json.loads(meanings_path.read_text(encoding="utf-8-sig"))["codes"] if meanings_path.exists() else {}
     group_map = json.loads((ROOT / "assets/groups/groups.json").read_text(encoding="utf-8-sig"))
@@ -371,6 +451,10 @@ def check(data_dir, dry_run=False):
                 url = "https://" + CHZ_HOST + url
             source_html = fetch_page(url)
             content = parse_group(group_id, source_html, meanings)
+            content["scope"]["sourceUrl"] = url
+            if group_id in SCOPE_QUESTIONS:
+                faq_url = f"https://{CHZ_HOST}/business/projects/{group_id}/faq/"
+                content["scope"] = parse_scope_faq(group_id, fetch_page(faq_url))
             source_content = {**content, "rows": [{k: v for k, v in row.items() if k != "meanings"} for row in content["rows"]]}
             revision = digest({"name": meta["name"], "sourceUrl": url, **content})
             old = before.get(group_id)
@@ -398,7 +482,7 @@ def check(data_dir, dry_run=False):
     print("PRODUCTS_FAILED=" + ",".join(failed))
     print("UNKNOWN_CODES=" + ",".join(sorted(unknown)))
     if not dry_run and result:
-        catalog = {"schemaVersion": 1, "revision": digest([(g["id"], g["revision"]) for g in result]), "groups": result}
+        catalog = {"schemaVersion": 2, "revision": digest([(g["id"], g["revision"]) for g in result]), "groups": result}
         directory.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".json.tmp")
         try:

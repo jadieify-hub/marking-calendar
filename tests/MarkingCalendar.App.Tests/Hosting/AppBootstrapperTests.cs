@@ -29,7 +29,7 @@ public sealed class AppBootstrapperTests
         var bundled = (await JsonSerializer.DeserializeAsync<ProductCatalog>(stream, JsonDefaults.Options))!;
         ProductCatalogValidator.EnsureValid(bundled);
         var next = bundled with { Revision = "remote-revision" };
-        var handler = new ProductsHandler(calendarFails ? JsonSerializer.Serialize(next, JsonDefaults.Options) : "{\"groups\":[null],\"schemaVersion\":1,\"revision\":\"bad\"}");
+        var handler = new ProductsHandler(calendarFails ? JsonSerializer.Serialize(next, JsonDefaults.Options) : "{\"groups\":[null],\"schemaVersion\":2,\"revision\":\"bad\"}");
         using var http = new HttpClient(handler);
         fixture.Set("_productCatalogClient", new ProductCatalogClient(http));
         fixture.Set("_productCatalogStore", fixture.ProductStore);
@@ -73,6 +73,31 @@ public sealed class AppBootstrapperTests
         Assert.Contains(fixture.Read<ProductCatalog>("_productCatalog").Groups, group => group.Id == "children");
         Assert.Same(profile, fixture.Read<AppState>("_state"));
         Assert.False(fixture.Read<bool>("_hasDownloadedProducts"));
+    }
+
+    [Fact]
+    public async Task LegacyProductCacheAndDownload_DoNotReplaceBundledCatalog()
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        await using var stream = typeof(AppBootstrapper).Assembly.GetManifestResourceStream("MarkingCalendar.Resources.bundled-products.json")!;
+        var bundled = (await JsonSerializer.DeserializeAsync<ProductCatalog>(stream, JsonDefaults.Options))!;
+        var legacy = bundled with { SchemaVersion = 1, Revision = "legacy", Groups = bundled.Groups.Select(group => group with { Scope = null }).ToArray() };
+        var legacyJson = JsonSerializer.Serialize(legacy, JsonDefaults.Options);
+        await File.WriteAllTextAsync(fixture.ProductFile, legacyJson);
+        fixture.Set("_productCatalogStore", fixture.ProductStore);
+
+        await fixture.InvokeAsync("LoadProductsAsync");
+
+        Assert.Equal(bundled.Revision, fixture.Read<ProductCatalog>("_productCatalog").Revision);
+        Assert.False(fixture.Read<bool>("_hasDownloadedProducts"));
+        using var http = new HttpClient(new ProductsHandler(legacyJson));
+        fixture.Set("_productCatalogClient", new ProductCatalogClient(http));
+
+        await fixture.RefreshAsync();
+
+        Assert.Equal(bundled.Revision, fixture.Read<ProductCatalog>("_productCatalog").Revision);
+        Assert.Equal("error", fixture.Read<ProductCatalogViewModel>("_products").Kind);
+        Assert.Equal(legacyJson, await File.ReadAllTextAsync(fixture.ProductFile));
     }
 
     private sealed class ProductsHandler(string json) : HttpMessageHandler
