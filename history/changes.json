@@ -1,6 +1,30 @@
 {
   "batches": [
     {
+      "id": "2193e9a5bda7c36aa145842b69885fc8de6b13caad7de08a6c52c6eeacc81e14",
+      "checkedAt": "2026-09-23T10:25:39.0763366+00:00",
+      "changes": {
+        "added": [],
+        "removed": [],
+        "moved": [],
+        "changed": [],
+        "groupsAdded": [],
+        "groupsRemoved": [],
+        "groupsRenamed": [
+          {
+            "from": "\u041A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430, \u0431\u044B\u0442\u043E\u0432\u0430\u044F \u0445\u0438\u043C\u0438\u044F \u0438 \u0442\u043E\u0432\u0430\u0440\u044B \u043B\u0438\u0447\u043D\u043E\u0439 \u0433\u0438\u0433\u0438\u0435\u043D\u044B",
+            "to": "\u041A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430, \u0431\u044B\u0442\u043E\u0432\u0430\u044F \u0445\u0438\u043C\u0438\u044F, \u0431\u0440\u0438\u0442\u0432\u044B \u0438 \u0441\u0430\u043D\u0438\u0442\u0430\u0440\u043D\u043E-\u0445\u043E\u0437\u044F\u0439\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0435 \u0442\u043E\u0432\u0430\u0440\u044B"
+          }
+        ],
+        "total": 0,
+        "groupTotal": 1,
+        "hasChanges": true
+      },
+      "previousSnapshotId": "a536d1f2ee9758a6786f4c43567cbfc4611758c4690502a3de6bf5539f47359d",
+      "currentSnapshotId": "d52163d81267c1ab14d081f4af71591f18dac69b4c2572faaf82c9ed8f17ff57",
+      "source": "public"
+    },
+    {
       "id": "880ad0e20399ab4ee25ceffc89d4d4a5632e03a0609fdfea5f18e1b867b1a8d5",
       "checkedAt": "2026-09-03T09:02:52.1890313+00:00",
       "changes": {

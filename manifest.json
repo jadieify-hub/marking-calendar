@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T09:02:52.2309431+00:00",
-  "snapshotId": "a536d1f2ee9758a6786f4c43567cbfc4611758c4690502a3de6bf5539f47359d",
+  "generatedAt": "2026-09-23T10:25:39.3189722+00:00",
+  "snapshotId": "d52163d81267c1ab14d081f4af71591f18dac69b4c2572faaf82c9ed8f17ff57",
   "eventCount": 432,
-  "batchCount": 1,
+  "batchCount": 2,
   "files": {
     "current": "current.json",
     "source": "source.json",
