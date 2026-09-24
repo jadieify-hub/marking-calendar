@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectBridge } from "./bridge";
 import type { AppViewModel, UiCommand } from "./contracts";
+import { developmentFixture } from "./development-fixture";
+import { mountApp } from "./render";
 
 const validModel: AppViewModel = {
   updatedAt: "02.09.2026, 10:00",
@@ -25,6 +27,38 @@ const validModel: AppViewModel = {
 };
 
 describe("connectBridge", () => {
+  it.each(["groupAdded", "groupRemoved", "groupRenamed"] as const)("renders host state containing %s instead of leaving an empty shell", (kind) => {
+    let listener: ((event: { data: unknown }) => void) | undefined;
+    Object.defineProperty(window, "chrome", { configurable: true, value: { webview: {
+      postMessage: vi.fn(),
+      addEventListener: (_: "message", handler: (event: { data: unknown }) => void) => { listener = handler; },
+    } } });
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    const receive = vi.fn((model: AppViewModel) => mounted.update(model));
+    connectBridge(receive);
+    const summary = {
+      kind, title: "Изменена товарная группа",
+      detail: "Косметика, бытовая химия и товары личной гигиены → Косметика, бытовая химия, бритвы и санитарно-хозяйственные товары",
+      stage: "", changedFields: [], mine: false, groupKey: "косметика", previousGroupKey: "старое название",
+    };
+    const counts = { moved: 0, added: 0, changed: 0, removed: 0, total: 1, groupsAdded: 0, groupsRemoved: 0, groupsRenamed: 1 };
+    const change = { counts, mineCount: 0, othersCount: 1, items: [summary] };
+    const model = {
+      ...developmentFixture,
+      history: { unreadCount: 1, batches: [{ ...change, id: "rename", checkedAt: "23.09.2026, 13:25", isUnread: true }] },
+      comparison: { ...change, baseRetrievedAt: "21.09.2026, 10:06" },
+      updateNotice: { ...change, batchId: "rename" },
+    };
+    listener?.({ data: JSON.parse(JSON.stringify({ type: "state", model })) });
+
+    expect(receive).toHaveBeenCalledOnce();
+    expect(root.querySelectorAll(".group-list input")).toHaveLength(model.groups.length);
+    expect(root.querySelector(".category-list")?.textContent).toContain("Розничная продажа");
+    expect(root.querySelector(".status")?.textContent).toContain(model.status.message);
+    expect(root.querySelector(".history-list")?.textContent).toContain(summary.detail);
+  });
+
   afterEach(() => {
     Reflect.deleteProperty(window, "chrome");
   });

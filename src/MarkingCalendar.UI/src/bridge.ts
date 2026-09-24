@@ -213,14 +213,16 @@ function isChangeBatch(value: unknown): boolean {
 
 function isChangeSummary(value: unknown): boolean {
   return isRecord(value)
-    && (value.kind === "added" || value.kind === "removed" || value.kind === "moved" || value.kind === "changed")
+    && (value.kind === "added" || value.kind === "removed" || value.kind === "moved" || value.kind === "changed"
+      || value.kind === "groupAdded" || value.kind === "groupRemoved" || value.kind === "groupRenamed")
     && typeof value.title === "string"
     && typeof value.detail === "string"
     && typeof value.stage === "string"
     && Array.isArray(value.changedFields)
     && value.changedFields.every(isChangedField)
     && typeof value.mine === "boolean"
-    && (value.groupKey === undefined || typeof value.groupKey === "string");
+    && (value.groupKey === undefined || typeof value.groupKey === "string")
+    && (value.previousGroupKey === undefined || typeof value.previousGroupKey === "string");
 }
 
 function isToast(value: unknown): boolean {
