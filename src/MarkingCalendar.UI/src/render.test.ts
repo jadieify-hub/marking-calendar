@@ -70,6 +70,48 @@ const products = {
 };
 
 describe("renderApp", () => {
+  it.each(["игрушки", "детские игрушки"])("shows a rename for a subscription under either name: %s", (selected) => {
+    const root = document.createElement("div");
+    const rename = { kind: "groupRenamed" as const, title: "Переименована товарная группа", detail: "Игрушки → Детские игрушки", stage: "", changedFields: [], mine: true, groupKey: "детские игрушки", previousGroupKey: "игрушки" };
+    const counts = { moved: 0, added: 0, changed: 0, removed: 0, total: 1, groupsRenamed: 1 };
+    renderApp(root, {
+      ...model, groups: [...model.groups, { key: "детские игрушки", name: "Детские игрушки", eventCount: 1 }],
+      selectedGroups: [selected], hasSelectedGroups: true,
+      history: { unreadCount: 0, batches: [{ id: "rename", checkedAt: "23.09.2026, 13:25", isUnread: false, counts, mineCount: 1, othersCount: 0, items: [rename] }] },
+      comparison: { baseRetrievedAt: "21.09.2026, 10:06", counts, mineCount: 1, othersCount: 0, items: [rename] },
+      updateNotice: { batchId: "rename", counts, mineCount: 1, othersCount: 0, items: [rename] },
+    }, vi.fn());
+    for (const selector of [".history-batch", ".comparison-result", ".update-dialog"]) {
+      expect(root.querySelector(`${selector} .change-row`)?.textContent).toContain(rename.detail);
+      expect(root.querySelector(selector)?.textContent).toContain("Переименовано групп");
+    }
+    expect(root.querySelector(".history-batch > p")?.textContent).toBe("1 изменение");
+  });
+
+  it.each([["mine", true], ["all", true], ["all", false]] as const)("preserves the renamed group selection in %s filters: %s", (mode, checked) => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    const app = mountApp(root, send);
+    app.update({ ...model, selectedGroups: ["игрушки"], hasSelectedGroups: true });
+    if (mode === "all") {
+      root.querySelector<HTMLButtonElement>('[data-select-groups="none"]')!.click();
+      const checkbox = root.querySelector<HTMLInputElement>('[data-group="игрушки"]')!;
+      checkbox.checked = checked;
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    expect(root.querySelector<HTMLInputElement>('[data-group="игрушки"]')?.checked).toBe(checked);
+    app.update({
+      ...model, selectedGroups: ["детские игрушки"], hasSelectedGroups: true,
+      groups: [{ key: "детские игрушки", name: "Детские игрушки", renamedFrom: "Игрушки", eventCount: 1 }, model.groups[1]],
+      events: [{ ...model.events[0], group: "Детские игрушки" }, model.events[1]],
+    });
+    expect(root.querySelector('[data-group="игрушки"]')).toBeNull();
+    expect(root.querySelector<HTMLInputElement>('[data-group="детские игрушки"]')?.checked).toBe(checked);
+    expect(root.querySelector(".group-list")?.textContent).toContain("Детские игрушки");
+    expect(root.querySelector('[data-group-mode="' + mode + '"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "setGroups" }));
+  });
+
   it("does not find sports nutrition by broad tariff meanings and keeps numeric lookup available", () => {
     const root = document.createElement("div");
     renderApp(root, { ...model, products: { ...products, catalog: bundledProducts } }, vi.fn());

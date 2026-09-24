@@ -18,6 +18,8 @@ public static class ChangeSummaryTextFormatter
             $"Календарь маркировки — изменения от {checkedAt.ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("ru-RU"))}",
             $"Перенесено {summary.Counts.Moved}, добавлено {summary.Counts.Added}, изменено {summary.Counts.Changed}, удалено {summary.Counts.Removed}"
         };
+        if (summary.Counts.GroupsAdded + summary.Counts.GroupsRemoved + summary.Counts.GroupsRenamed > 0)
+            lines.Add($"Товарные группы: добавлено {summary.Counts.GroupsAdded}, удалено {summary.Counts.GroupsRemoved}, переименовано {summary.Counts.GroupsRenamed}");
         var emitted = 0;
         if (selectedGroups.Count == 0)
         {

@@ -6,6 +6,19 @@ namespace MarkingCalendar.Infrastructure.Tests.Storage;
 public sealed class GroupSubscriptionUpdaterTests
 {
     [Fact]
+    public void Apply_ReportsManualOnlyRenameSoCallerPersistsIt()
+    {
+        var state = AppState.Initial.WithGroupPreferences([], new Dictionary<string, bool> { ["старая"] = false });
+        var batch = Batch("rename", DateTimeOffset.UtcNow, "Старая", "Новая");
+        var result = GroupSubscriptionUpdater.Apply(state, [batch]);
+        Assert.Single(result.AppliedRenames);
+        Assert.Empty(result.State.SelectedGroups);
+        Assert.False(result.State.ManualGroups["новая"]);
+        Assert.DoesNotContain("старая", result.State.ManualGroups.Keys);
+        Assert.Empty(GroupSubscriptionUpdater.Apply(result.State, [batch]).AppliedRenames);
+    }
+
+    [Fact]
     public void Apply_TransfersSubscriptionAcrossRenameChain()
     {
         var state = AppState.Initial.WithGroups([" Медицинские изделия "]);

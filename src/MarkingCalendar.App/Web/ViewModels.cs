@@ -67,7 +67,8 @@ public sealed record ChangeCountsViewModel(
     int Removed,
     int Total,
     int GroupsAdded = 0,
-    int GroupsRenamed = 0);
+    int GroupsRenamed = 0,
+    int GroupsRemoved = 0);
 public sealed record ChangeSummaryViewModel(
     string Kind,
     string Title,
@@ -75,7 +76,8 @@ public sealed record ChangeSummaryViewModel(
     string Stage,
     IReadOnlyList<ChangedFieldViewModel> ChangedFields,
     bool Mine,
-    string GroupKey = "");
+    string GroupKey = "",
+    string PreviousGroupKey = "");
 public sealed record ChangeBatchViewModel(
     string Id,
     string CheckedAt,

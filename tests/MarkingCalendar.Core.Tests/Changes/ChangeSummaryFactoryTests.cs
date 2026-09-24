@@ -5,6 +5,48 @@ namespace MarkingCalendar.Core.Tests.Changes;
 
 public sealed class ChangeSummaryFactoryTests
 {
+    [Theory]
+    [InlineData("Косметика и товары личной гигиены", true)]
+    [InlineData("Косметика, бритвы и санитарно-хозяйственные товары", true)]
+    [InlineData("Игрушки", false)]
+    public void Create_IncludesGroupRenameInSummaryAndCopiedText(string selectedGroup, bool expectedMine)
+    {
+        const string from = "Косметика и товары личной гигиены";
+        const string to = "Косметика, бритвы и санитарно-хозяйственные товары";
+        var changes = new ChangeSet([], [], [], [], groupsRenamed: [new(from, to)]);
+        var selected = new HashSet<string> { selectedGroup };
+        var result = new ChangeSummaryFactory().Create(changes, 8, new(2026, 9, 24), selected);
+
+        Assert.Equal(1, result.Counts.Total);
+        Assert.Equal(0, result.Counts.Changed);
+        var item = Assert.Single(result.Items);
+        Assert.Equal("Переименована товарная группа", item.Title);
+        Assert.Equal($"{from} → {to}", item.Detail);
+        Assert.Equal(expectedMine, item.Mine);
+        Assert.Equal(expectedMine ? 1 : 0, result.MineCount);
+        Assert.Equal(expectedMine ? 0 : 1, result.OthersCount);
+        var text = ChangeSummaryTextFormatter.Format(result, DateTimeOffset.UtcNow, selected);
+        Assert.Contains(item.Detail, text);
+        Assert.Contains("переименовано 1", text);
+    }
+
+    [Fact]
+    public void Create_IncludesAddedAndRemovedGroupsAlongsideEventsWithoutLosingCountsAtLimit()
+    {
+        var changes = new ChangeSet([E("2026-10-01", "Новая")], [], [], [],
+            groupsAdded: [new("Новая", 1, new(2026, 10, 1))],
+            groupsRemoved: [new("Удалённая", 2, null)]);
+        var result = new ChangeSummaryFactory().Create(changes, 8, new(2026, 9, 24), new HashSet<string>());
+        Assert.Equal(3, result.Counts.Total);
+        Assert.Equal(1, result.Counts.Added);
+        Assert.Contains(result.Items, item => item.Title == "Добавлена товарная группа" && item.Detail == "Новая");
+        Assert.Contains(result.Items, item => item.Title == "Удалена товарная группа" && item.Detail == "Удалённая");
+        var limited = new ChangeSummaryFactory().Create(changes, 1, new(2026, 9, 24), new HashSet<string>());
+        Assert.Single(limited.Items);
+        Assert.Equal(3, limited.Counts.Total);
+        Assert.Equal(3, limited.OthersCount);
+    }
+
     [Fact]
     public void Create_FormatsMoveAndPreservesAllCounts()
     {

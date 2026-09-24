@@ -487,10 +487,10 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         foreach (var applied in update.AppliedRenames)
         {
             var rename = applied.Rename;
-            _logger.Log(AppLogLevel.Info, "groups", $"Подписка перенесена: «{rename.From}» → «{rename.To}».");
+            _logger.Log(AppLogLevel.Info, "groups", $"Настройки группы перенесены: «{rename.From}» → «{rename.To}».");
         }
         var latest = update.AppliedRenames[^1].Rename;
-        _toast = new ToastViewModel("success", $"Группа «{latest.From}» переименована в «{latest.To}», подписка перенесена");
+        _toast = new ToastViewModel("success", $"Группа «{latest.From}» переименована в «{latest.To}», настройки сохранены");
     }
 
     private async Task SyncPublicHistoryAsync(CancellationToken cancellationToken)

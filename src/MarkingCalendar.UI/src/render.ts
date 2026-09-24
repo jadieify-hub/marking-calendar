@@ -578,6 +578,11 @@ class TimelineRenderer implements MountedApp {
   }
 
   private initializeState(model: AppViewModel, selectionIsCurrent: boolean): void {
+    for (const group of model.groups) {
+      if (group.renamedFrom && this.state.browsingGroups?.delete(normalize(group.renamedFrom))) {
+        this.state.browsingGroups.add(group.key);
+      }
+    }
     if (selectionIsCurrent) {
       this.selectionRevision = model.selectionRevision ?? 0;
       const changed = model.selectedGroups.length !== this.state.selectedGroups.size
@@ -2256,7 +2261,10 @@ function renderHistory(
     total.textContent = pluralNoun(batch.counts.total, "изменение", "изменения", "изменений");
     article.append(heading, total, renderChangeCounts(batch.counts, "history"));
     const showAll = mode === "all" || expandedBatchIds.has(batch.id);
-    const mine = batch.items.filter(entry => entry.groupKey && knownGroups.has(entry.groupKey) ? selectedGroups.has(entry.groupKey) : entry.mine);
+    const mine = batch.items.filter(entry => {
+      const keys = [entry.groupKey, entry.previousGroupKey].filter((key): key is string => !!key);
+      return keys.some(key => selectedGroups.has(key)) || (!keys.some(key => knownGroups.has(key)) && entry.mine);
+    });
     const othersCount = batch.items.length - mine.length;
     for (const item of showAll ? batch.items : mine) article.append(summaryRow(item));
     if (mode === "mine" && othersCount > 0 && !showAll) {
@@ -2290,7 +2298,7 @@ function renderChangeCounts(counts: ChangeCountsViewModel, context: "history" | 
     count.append(number, label);
     grid.append(count);
   }
-  for (const [label, value] of [["Новые группы", counts.groupsAdded ?? 0], ["Переименовано групп", counts.groupsRenamed ?? 0]] as const) {
+  for (const [label, value] of [["Новые группы", counts.groupsAdded ?? 0], ["Переименовано групп", counts.groupsRenamed ?? 0], ["Удалено групп", counts.groupsRemoved ?? 0]] as const) {
     if (value === 0) continue;
     const count = document.createElement("div");
     count.className = `change-count ${context}-count change-group`;
@@ -2309,7 +2317,9 @@ function summaryRow(item: ChangeSummaryViewModel): HTMLElement {
   row.className = `change-row change-${item.kind}`;
   const marker = document.createElement("span");
   marker.className = "change-marker";
-  marker.textContent = item.kind === "moved" ? "→" : item.kind === "added" ? "+" : item.kind === "removed" ? "−" : "•";
+  marker.textContent = item.kind === "moved" || item.kind === "groupRenamed" ? "→"
+    : item.kind === "added" || item.kind === "groupAdded" ? "+"
+    : item.kind === "removed" || item.kind === "groupRemoved" ? "−" : "•";
   const copy = document.createElement("span");
   const title = document.createElement("strong");
   title.textContent = item.title;

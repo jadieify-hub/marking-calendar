@@ -13,6 +13,36 @@ namespace MarkingCalendar.App.Tests.Web;
 public sealed class AppViewModelFactoryTests
 {
     [Fact]
+    public void Create_PreservesGroupRenameInHistoryNoticeAndComparison()
+    {
+        var changes = new ChangeSet([], [], [], [], groupsRenamed: [new("Игрушки", "Детские игрушки")]);
+        var at = new DateTimeOffset(2026, 9, 24, 9, 0, 0, TimeSpan.Zero);
+        var batch = new ChangeBatch("rename", at, changes);
+        var snapshot = CalendarSnapshot.Create(at, new Uri("https://example.test"), [Event("1", "Детские игрушки")]);
+        var summaryFactory = new ChangeSummaryFactory();
+        var summary = summaryFactory.Create(changes, 8, new(2026, 9, 24), new HashSet<string> { "Детские игрушки" });
+        var result = new AppViewModelFactory(summaryFactory, new FixedTimeProvider()).Create(
+            snapshot, new ChangeHistory([batch]), new AppStatusViewModel("ready", ""), batch,
+            new AppState(2, [], ["Детские игрушки"], "dark"),
+            comparison: new SnapshotComparison(at.AddDays(-1), summary));
+
+        var history = Assert.Single(result.History.Batches);
+        foreach (var counts in new[] { history.Counts, result.UpdateNotice!.Counts, result.Comparison!.Counts })
+        {
+            Assert.Equal(1, counts.Total);
+            Assert.Equal(1, counts.GroupsRenamed);
+            Assert.Equal(0, counts.Changed);
+        }
+        foreach (var items in new[] { history.Items, result.UpdateNotice.Items, result.Comparison.Items })
+        {
+            var item = Assert.Single(items);
+            Assert.Equal("groupRenamed", item.Kind);
+            Assert.Equal("Игрушки → Детские игрушки", item.Detail);
+            Assert.True(item.Mine);
+        }
+    }
+
+    [Fact]
     public void Create_AssignsCategoryColorsAndFormatsDatesInHost()
     {
         var calendarEvent = new CalendarEvent(

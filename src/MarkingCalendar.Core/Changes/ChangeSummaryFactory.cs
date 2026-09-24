@@ -3,9 +3,10 @@ using MarkingCalendar.Core.Events;
 
 namespace MarkingCalendar.Core.Changes;
 
-public sealed record ChangeCounts(int Added, int Removed, int Moved, int Changed)
+public sealed record ChangeCounts(int Added, int Removed, int Moved, int Changed,
+    int GroupsAdded = 0, int GroupsRemoved = 0, int GroupsRenamed = 0)
 {
-    public int Total => Added + Removed + Moved + Changed;
+    public int Total => Added + Removed + Moved + Changed + GroupsAdded + GroupsRemoved + GroupsRenamed;
 }
 
 public sealed record ChangeSummary(
@@ -17,7 +18,8 @@ public sealed record ChangeSummary(
     IReadOnlyList<ChangedField> ChangedFields,
     bool Mine,
     EventCategory Category = EventCategory.Other,
-    string GroupKey = "");
+    string GroupKey = "",
+    string PreviousGroupKey = "");
 
 public sealed record ChangeSummaryResult(
     ChangeCounts Counts,
@@ -43,6 +45,12 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
         items.AddRange(changes.Added.Select(item => EventSummary(ChangeKind.Added, item, FormatDate(EventDate(item)), [], mine)));
         items.AddRange(changes.Changed.Select(item => EventSummary(ChangeKind.Changed, item.Current, $"{FormatDate(EventDate(item.Current))} · изменены параметры", item.GetChangedFields(), mine)));
         items.AddRange(changes.Removed.Select(item => EventSummary(ChangeKind.Removed, item, FormatDate(EventDate(item)), [], mine)));
+        items.AddRange(changes.GroupsAdded.Select(group => GroupSummary(ChangeKind.GroupAdded,
+            "Добавлена товарная группа", group.Name, group.Name, null, mine)));
+        items.AddRange(changes.GroupsRemoved.Select(group => GroupSummary(ChangeKind.GroupRemoved,
+            "Удалена товарная группа", group.Name, group.Name, null, mine)));
+        items.AddRange(changes.GroupsRenamed.Select(group => GroupSummary(ChangeKind.GroupRenamed,
+            "Переименована товарная группа", $"{group.From} → {group.To}", group.To, group.From, mine)));
 
         var selected = items
             .OrderBy(item => mine.Count > 0 && !item.Mine ? 1 : 0)
@@ -53,9 +61,20 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
             .ThenBy(item => item.Title, StringComparer.CurrentCulture)
             .Take(Math.Max(0, limit))
             .ToArray();
-        var counts = new ChangeCounts(changes.Added.Count, changes.Removed.Count, changes.Moved.Count, changes.Changed.Count);
+        var counts = new ChangeCounts(changes.Added.Count, changes.Removed.Count, changes.Moved.Count, changes.Changed.Count,
+            changes.GroupsAdded.Count, changes.GroupsRemoved.Count, changes.GroupsRenamed.Count);
         var mineCount = mine.Count == 0 ? 0 : items.Count(item => item.Mine);
         return new ChangeSummaryResult(counts, selected, mineCount, counts.Total - mineCount);
+    }
+
+    private static ChangeSummary GroupSummary(ChangeKind kind, string title, string detail, string name,
+        string? previousName, HashSet<string> selectedGroups)
+    {
+        var key = GroupKey.Normalize(name);
+        var previousKey = previousName is null ? "" : GroupKey.Normalize(previousName);
+        return new(kind, title, detail, "", null, [],
+            selectedGroups.Contains(key) || selectedGroups.Contains(previousKey),
+            GroupKey: key, PreviousGroupKey: previousKey);
     }
 
     private static ChangeSummary MoveSummary(EventChange change, IReadOnlySet<string> selectedGroups)

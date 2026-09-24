@@ -118,13 +118,14 @@ export interface CalendarEventViewModel {
 }
 
 export interface ChangeSummaryViewModel {
-  readonly kind: ChangeKind;
+  readonly kind: ChangeKind | "groupAdded" | "groupRemoved" | "groupRenamed";
   readonly title: string;
   readonly detail: string;
   readonly stage: string;
   readonly changedFields: ReadonlyArray<ChangedFieldViewModel>;
   readonly mine: boolean;
   readonly groupKey?: string;
+  readonly previousGroupKey?: string;
 }
 
 export interface ChangeCountsViewModel {
@@ -135,6 +136,7 @@ export interface ChangeCountsViewModel {
   readonly total: number;
   readonly groupsAdded?: number;
   readonly groupsRenamed?: number;
+  readonly groupsRemoved?: number;
 }
 
 export interface ChangeBatchViewModel {

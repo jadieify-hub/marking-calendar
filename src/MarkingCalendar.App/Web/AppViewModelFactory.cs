@@ -274,7 +274,7 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
             batch.Id,
             batch.CheckedAt.ToString("dd.MM.yyyy, HH:mm", Russian),
             isUnread,
-            Counts(summary, batch.Changes),
+            Counts(summary),
             summary.MineCount,
             summary.OthersCount,
             summary.Items.Select(Item).ToArray());
@@ -289,24 +289,25 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
         var summary = _summaryFactory.Create(batch.Changes, 8, DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime), selectedGroups, priorityCategories);
         return new UpdateNoticeViewModel(
             batch.Id,
-            Counts(summary, batch.Changes),
+            Counts(summary),
             summary.MineCount,
             summary.OthersCount,
             summary.Items.Select(Item).ToArray(),
             relatedBatchIds ?? [batch.Id]);
     }
 
-    private static ChangeCountsViewModel Counts(ChangeSummaryResult summary, ChangeSet? changes = null) => new(
+    private static ChangeCountsViewModel Counts(ChangeSummaryResult summary) => new(
         summary.Counts.Moved,
         summary.Counts.Added,
         summary.Counts.Changed,
         summary.Counts.Removed,
         summary.Counts.Total,
-        changes?.GroupsAdded.Count ?? 0,
-        changes?.GroupsRenamed.Count ?? 0);
+        summary.Counts.GroupsAdded,
+        summary.Counts.GroupsRenamed,
+        summary.Counts.GroupsRemoved);
 
     private static ChangeSummaryViewModel Item(ChangeSummary item) =>
-        new(Kind(item.Kind), item.Title, item.Detail, item.Stage, item.ChangedFields.Select(Field).ToArray(), item.Mine, item.GroupKey);
+        new(Kind(item.Kind), item.Title, item.Detail, item.Stage, item.ChangedFields.Select(Field).ToArray(), item.Mine, item.GroupKey, item.PreviousGroupKey);
 
     private static ChangedFieldViewModel Field(ChangedField field) =>
         new(field.Field, field.Previous, field.Current);
@@ -317,6 +318,9 @@ public sealed class AppViewModelFactory(IChangeSummaryFactory summaryFactory, Ti
         ChangeKind.Removed => "removed",
         ChangeKind.Moved => "moved",
         ChangeKind.Changed => "changed",
+        ChangeKind.GroupAdded => "groupAdded",
+        ChangeKind.GroupRemoved => "groupRemoved",
+        ChangeKind.GroupRenamed => "groupRenamed",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Неизвестный тип изменения.")
     };
 

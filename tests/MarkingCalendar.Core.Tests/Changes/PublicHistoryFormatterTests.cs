@@ -9,6 +9,25 @@ namespace MarkingCalendar.Core.Tests.Changes;
 public sealed class PublicHistoryFormatterTests
 {
     [Fact]
+    public void PublicHistory_IncludesGroupOnlyChanges()
+    {
+        var changes = new ChangeSet([], [], [], [],
+            groupsAdded: [new("Новая", 1, null)], groupsRemoved: [new("Удалённая", 1, null)],
+            groupsRenamed: [new("Старая", "Новое название")]);
+        var history = new ChangeHistory([Batch("groups", DateTimeOffset.UtcNow, changes)]);
+        var markdown = ChangeMarkdownFormatter.Format(history);
+        Assert.Contains("3 изменения", markdown);
+        Assert.Contains("Старая → Новое название", markdown);
+        Assert.Contains("Новая", markdown);
+        Assert.Contains("Удалённая", markdown);
+        var feed = XDocument.Parse(AtomFeedWriter.Write(history, new Uri("https://example.test"), new(2026, 9, 24)));
+        XNamespace atom = "http://www.w3.org/2005/Atom";
+        var entry = Assert.Single(feed.Root!.Elements(atom + "entry"));
+        Assert.Contains("3 изменения", entry.Element(atom + "title")!.Value);
+        Assert.Contains("Старая → Новое название", entry.Element(atom + "content")!.Value);
+    }
+
+    [Fact]
     public void Markdown_ProducesStableRussianHistoryForThreeBatchesIncludingEndOnlyMove()
     {
         var previous = IntervalEvent("old", new DateOnly(2025, 12, 1), new DateOnly(2026, 8, 31));

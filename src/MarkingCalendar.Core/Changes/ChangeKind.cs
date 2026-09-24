@@ -5,6 +5,8 @@ public enum ChangeKind
     Added,
     Removed,
     Moved,
-    Changed
+    Changed,
+    GroupAdded,
+    GroupRemoved,
+    GroupRenamed
 }
-

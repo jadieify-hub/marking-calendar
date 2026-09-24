@@ -16,17 +16,16 @@ public static class GroupSubscriptionUpdater
         var selected = state.SelectedGroups.ToHashSet(StringComparer.Ordinal);
         var manual = new Dictionary<string, bool>(state.ManualGroups, StringComparer.Ordinal);
         var applied = new List<AppliedGroupRename>();
-        var changed = false;
         foreach (var batch in batches.OrderBy(item => item.CheckedAt).ThenBy(item => item.Id, StringComparer.Ordinal))
         {
             foreach (var rename in batch.Changes.GroupsRenamed)
             {
                 var from = GroupKey.Normalize(rename.From);
                 var to = GroupKey.Normalize(rename.To);
+                var changed = false;
                 if (selected.Remove(from))
                 {
                     selected.Add(to);
-                    applied.Add(new AppliedGroupRename(batch.Id, rename));
                     changed = true;
                 }
 
@@ -35,10 +34,11 @@ public static class GroupSubscriptionUpdater
                     manual.TryAdd(to, included);
                     changed = true;
                 }
+                if (changed) applied.Add(new AppliedGroupRename(batch.Id, rename));
             }
         }
 
-        return !changed
+        return applied.Count == 0
             ? new GroupSubscriptionUpdateResult(state, [])
             : new GroupSubscriptionUpdateResult(state.WithGroupPreferences(selected, manual), applied);
     }

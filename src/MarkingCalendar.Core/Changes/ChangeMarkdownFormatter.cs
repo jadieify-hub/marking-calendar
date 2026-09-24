@@ -24,13 +24,15 @@ public static class ChangeMarkdownFormatter
 
         foreach (var batch in batches)
         {
-            var checkedAt = batch.CheckedAt.ToOffset(MoscowOffset);
             lines.Add(string.Empty);
-            lines.Add($"## {checkedAt.ToString("dd.MM.yyyy, HH:mm", CultureInfo.GetCultureInfo("ru-RU"))} МСК — {CountText(batch.Changes.Total)}");
+            lines.Add($"## {BatchTitle(batch)}");
             AppendSection(lines, "Перенесено", batch.Changes.Moved, AppendMoved);
             AppendSection(lines, "Добавлено", batch.Changes.Added, AppendEvent);
             AppendSection(lines, "Изменено", batch.Changes.Changed, AppendChanged);
             AppendSection(lines, "Удалено", batch.Changes.Removed, AppendEvent);
+            AppendSection(lines, "Добавлены товарные группы", batch.Changes.GroupsAdded, (target, group) => target.Add($"- {Escape(group.Name)}"));
+            AppendSection(lines, "Удалены товарные группы", batch.Changes.GroupsRemoved, (target, group) => target.Add($"- {Escape(group.Name)}"));
+            AppendSection(lines, "Переименованы товарные группы", batch.Changes.GroupsRenamed, (target, group) => target.Add($"- {Escape(group.From)} → {Escape(group.To)}"));
         }
 
         if (history.Batches.Count > BatchLimit)
@@ -46,7 +48,7 @@ public static class ChangeMarkdownFormatter
     internal static string BatchTitle(ChangeBatch batch)
     {
         var checkedAt = batch.CheckedAt.ToOffset(MoscowOffset);
-        return $"{checkedAt.ToString("dd.MM.yyyy, HH:mm", CultureInfo.GetCultureInfo("ru-RU"))} МСК — {CountText(batch.Changes.Total)}";
+        return $"{checkedAt.ToString("dd.MM.yyyy, HH:mm", CultureInfo.GetCultureInfo("ru-RU"))} МСК — {CountText(batch.Changes.Total + batch.Changes.GroupTotal)}";
     }
 
     private static void AppendSection<T>(List<string> lines, string title, IReadOnlyList<T> items, Action<List<string>, T> append)
