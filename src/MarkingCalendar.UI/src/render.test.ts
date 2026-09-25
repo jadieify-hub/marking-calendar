@@ -70,6 +70,61 @@ const products = {
 };
 
 describe("renderApp", () => {
+  it("prints every matching event beyond the visible page without changing the profile", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    const events = Array.from({ length: 95 }, (_, index) => ({
+      ...model.events[0], id: `print-${index}`,
+      start: new Date(Date.UTC(2026, 8, index + 1)).toISOString().slice(0, 10),
+      stage: `Событие ${index + 1}`,
+    }));
+    renderApp(root, { ...model, events: [...events, model.events[1]], eventCount: 96,
+      selectedGroups: ["игрушки"], hasSelectedGroups: true }, send);
+    expect(root.querySelector('[data-action="load-more"]')).not.toBeNull();
+    const print = root.querySelector<HTMLButtonElement>('[data-action="print-calendar"]');
+    expect(print).not.toBeNull();
+    print!.click();
+    const sheet = root.querySelector(".print-calendar")!;
+    expect(sheet.querySelectorAll("tbody tr")).toHaveLength(95);
+    expect(sheet.textContent).toContain("Событие 95");
+    expect(sheet.textContent).not.toContain("Обувь");
+    expect(sheet.textContent).toContain(model.updatedAt);
+    expect(send).toHaveBeenCalledWith({ type: "printCalendar" });
+    root.querySelector<HTMLButtonElement>('[data-action="save-calendar-pdf"]')!.click();
+    expect(send).toHaveBeenCalledWith({ type: "saveCalendarPdf" });
+    expect(root.querySelectorAll(".print-calendar")).toHaveLength(1);
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "setGroups" }));
+  });
+
+  it("uses the current category and search filters for PDF and disables printing an empty selection", () => {
+    const root = document.createElement("div");
+    const send = vi.fn();
+    renderApp(root, model, send);
+    const category = root.querySelector<HTMLButtonElement>('[data-category="marking"]')!;
+    category.click();
+    const pdf = root.querySelector<HTMLButtonElement>('[data-action="save-calendar-pdf"]');
+    expect(pdf).not.toBeNull();
+    pdf!.click();
+    expect(root.querySelectorAll(".print-calendar tbody tr")).toHaveLength(1);
+    expect(root.querySelector(".print-calendar tbody")?.textContent).toContain("Игрушки");
+    const search = root.querySelector<HTMLInputElement>('[data-filter="query"]')!;
+    search.value = "Нет такого события";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.querySelector<HTMLButtonElement>('[data-action="print-calendar"]')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('[data-action="save-calendar-pdf"]')?.disabled).toBe(true);
+  });
+
+  it("prepares a fresh table for native printing before and after filter changes", () => {
+    const root = document.createElement("div");
+    renderApp(root, model, vi.fn());
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(root.querySelectorAll(".print-calendar tbody tr")).toHaveLength(2);
+    root.querySelector<HTMLButtonElement>('[data-category="marking"]')!.click();
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(root.querySelectorAll(".print-calendar tbody tr")).toHaveLength(1);
+    expect(root.querySelector(".print-calendar tbody")?.textContent).not.toContain("Обувь");
+  });
+
   it.each(["игрушки", "детские игрушки"])("shows a rename for a subscription under either name: %s", (selected) => {
     const root = document.createElement("div");
     const rename = { kind: "groupRenamed" as const, title: "Переименована товарная группа", detail: "Игрушки → Детские игрушки", stage: "", changedFields: [], mine: true, groupKey: "детские игрушки", previousGroupKey: "игрушки" };

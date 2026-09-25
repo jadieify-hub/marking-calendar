@@ -59,7 +59,8 @@ public sealed class WebMessageRouter(
     Func<string, CancellationToken, Task<bool>>? copyBatch = null,
     Func<string, CancellationToken, Task<bool>>? copyNotice = null,
     Func<CancellationToken, Task<bool>>? copyComparison = null,
-    Func<IReadOnlyList<string>, CancellationToken, Task<bool>>? exportCalendar = null)
+    Func<IReadOnlyList<string>, CancellationToken, Task<bool>>? exportCalendar = null,
+    Func<bool, CancellationToken, Task>? printCalendar = null)
 {
     private readonly IExternalLauncher _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
     private readonly IClipboardService _clipboard = clipboard ?? throw new ArgumentNullException(nameof(clipboard));
@@ -77,6 +78,7 @@ public sealed class WebMessageRouter(
     private readonly Func<string, CancellationToken, Task<bool>>? _copyNotice = copyNotice;
     private readonly Func<CancellationToken, Task<bool>>? _copyComparison = copyComparison;
     private readonly Func<IReadOnlyList<string>, CancellationToken, Task<bool>>? _exportCalendar = exportCalendar;
+    private readonly Func<bool, CancellationToken, Task>? _printCalendar = printCalendar;
 
     public async Task<WebCommandResult> HandleAsync(string json, CancellationToken cancellationToken)
     {
@@ -164,6 +166,9 @@ public sealed class WebMessageRouter(
                         return await _exportCalendar(eventIds, cancellationToken).ConfigureAwait(false)
                             ? WebCommandResult.Handled
                             : WebCommandResult.Rejected;
+                    case "printCalendar" or "saveCalendarPdf" when _printCalendar is not null:
+                        await _printCalendar(type == "saveCalendarPdf", cancellationToken).ConfigureAwait(false);
+                        return WebCommandResult.Handled;
                     case "copySupportUrl":
                         _clipboard.SetText(ProductInfo.SupportUrl);
                         return WebCommandResult.Handled;
@@ -203,6 +208,8 @@ public sealed class WebMessageRouter(
         "compareWith" => "Не удалось сравнить снимки.",
         "copyBatch" or "copyNotice" or "copyComparison" => "Не удалось скопировать сводку.",
         "exportCalendar" => "Не удалось экспортировать календарь.",
+        "printCalendar" => "Не удалось открыть печать календаря.",
+        "saveCalendarPdf" => "Не удалось сохранить PDF. Проверьте доступ к выбранной папке.",
         "restartForUpdate" => "Не удалось запустить обновление.",
         _ => "Команда не выполнена."
     };

@@ -7,6 +7,30 @@ namespace MarkingCalendar.App.Tests.Web;
 public sealed class WebMessageRouterTests
 {
     [Theory]
+    [InlineData("printCalendar", false)]
+    [InlineData("saveCalendarPdf", true)]
+    public async Task HandleAsync_RoutesPrintAndPdfCommands(string command, bool expectedPdf)
+    {
+        bool? actualPdf = null;
+        var router = new WebMessageRouter(new RecordingLauncher(), new RecordingClipboard(),
+            _ => Task.CompletedTask, _ => Task.CompletedTask, (_, _) => Task.CompletedTask,
+            printCalendar: (pdf, _) => { actualPdf = pdf; return Task.CompletedTask; });
+        var result = await router.HandleAsync($$"""{"type":"{{command}}"}""", CancellationToken.None);
+        Assert.Equal(WebCommandResult.Handled, result);
+        Assert.Equal(expectedPdf, actualPdf);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ReportsPdfFailureInsteadOfSilentlyIgnoringIt()
+    {
+        var router = new WebMessageRouter(new RecordingLauncher(), new RecordingClipboard(),
+            _ => Task.CompletedTask, _ => Task.CompletedTask, (_, _) => Task.CompletedTask,
+            printCalendar: (_, _) => throw new IOException("Disk full"));
+        var result = await router.HandleAsync("""{"type":"saveCalendarPdf"}""", CancellationToken.None);
+        Assert.Contains("Не удалось сохранить PDF", result.Message);
+    }
+
+    [Theory]
     [InlineData("https://честныйзнак.рф/business/projects/beer/")]
     [InlineData("https://github.com/jadieify-hub/marking-calendar")]
     [InlineData("https://pay.cloudtips.ru/p/53698013")]

@@ -237,6 +237,7 @@ export type UiCommand =
   | { readonly type: "copySupportUrl" }
   | { readonly type: "openLogs" }
   | { readonly type: "restartForUpdate" }
-  | { readonly type: "exportCalendar"; readonly eventIds: ReadonlyArray<string> };
+  | { readonly type: "exportCalendar"; readonly eventIds: ReadonlyArray<string> }
+  | { readonly type: "printCalendar" | "saveCalendarPdf" };
 
 export type CommandSink = (command: UiCommand) => void;

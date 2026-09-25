@@ -22,6 +22,7 @@ import {
 } from "./feed";
 import { wordDiff, type DiffSegment } from "./wordDiff";
 import { createProductGroupIcon } from "./productGroupIcon";
+import { createPrintCalendar } from "./printCalendar";
 
 const MONTHS = [
   "январь", "февраль", "март", "апрель", "май", "июнь",
@@ -164,6 +165,7 @@ class TimelineRenderer implements MountedApp {
     productsGroupId: null,
   };
   private model: AppViewModel | null = null;
+  private printEvents: ReadonlyArray<CalendarEventViewModel> = [];
   private selectionRevision = 0;
   private readonly cards = new Map<string, FeedCard>();
   private dialogController: DialogController | null = null;
@@ -184,6 +186,7 @@ class TimelineRenderer implements MountedApp {
     this.guideCompleted = this.readGuideCompletion();
     this.mountShell();
     this.bindShell();
+    window.addEventListener("beforeprint", () => { if (this.model) this.preparePrintCalendar(); });
   }
 
   public update(model: AppViewModel): void {
@@ -233,6 +236,19 @@ class TimelineRenderer implements MountedApp {
     this.openHistoryBatch(batchId);
   }
 
+  private preparePrintCalendar(): void {
+    const model = this.requireModel();
+    const categories = model.categories.filter(category => this.selectedCategories().has(category.id)).map(category => category.label);
+    const filters = [
+      `Категории: ${categories.join(", ")}`,
+      this.state.showPast ? "Включая прошедшие события" : `С ${model.today.slice(5, 7)}.${model.today.slice(0, 4)}`,
+      ...(this.state.onlyChanged ? ["Только с изменениями"] : []),
+      ...(this.state.query.trim().length >= 2 ? [`Поиск: ${this.state.query.trim()}`] : []),
+    ].join(" · ");
+    this.root.querySelector(".print-calendar")?.remove();
+    this.root.append(createPrintCalendar(this.printEvents, model.updatedAt, filters));
+  }
+
   private mountShell(): void {
     this.root.innerHTML = `
       <div class="app-shell">
@@ -268,7 +284,7 @@ class TimelineRenderer implements MountedApp {
               <div class="group-list"></div>
             </section>
             <section class="sidebar-section" data-section="categories"><h2>Категории</h2><div class="category-list"></div></section>
-            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label><button type="button" class="secondary-button export-calendar" data-action="export-calendar" disabled>Экспортировать · 0</button></section>
+            <section class="sidebar-section" data-section="past"><label class="toggle"><input type="checkbox" data-filter="changed"> Только с изменениями</label><label class="toggle"><input type="checkbox" data-filter="past"> Показать прошедшие</label><button type="button" class="secondary-button export-calendar" data-action="export-calendar" disabled>Экспортировать · 0</button><div class="print-actions"><button type="button" class="secondary-button" data-action="print-calendar" disabled>Печать</button><button type="button" class="secondary-button" data-action="save-calendar-pdf" disabled>Сохранить PDF</button></div></section>
           </aside>
           <main class="content">
             <section class="calendar-view" aria-label="Календарь">
@@ -418,6 +434,13 @@ class TimelineRenderer implements MountedApp {
     required(this.root.querySelector<HTMLButtonElement>('[data-action="export-calendar"]')).addEventListener("click", () => {
       if (this.visibleEventIds.length > 0) this.send({ type: "exportCalendar", eventIds: this.visibleEventIds });
     });
+    for (const [action, type] of [["print-calendar", "printCalendar"], ["save-calendar-pdf", "saveCalendarPdf"]] as const) {
+      required(this.root.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)).addEventListener("click", () => {
+        if (this.printEvents.length === 0) return;
+        this.preparePrintCalendar();
+        this.send({ type });
+      });
+    }
     required(this.root.querySelector<HTMLElement>(".load-more")).addEventListener("click", (event) => {
       if (!(event.target instanceof Element) || !event.target.closest('[data-action="load-more"]')) return;
       this.state.visibleDayLimit += 90;
@@ -755,6 +778,12 @@ class TimelineRenderer implements MountedApp {
       onlyChanged: this.state.onlyChanged,
     }, model.today);
     const allMonths = groupFeed(filtered);
+    this.printEvents = allMonths.flatMap(month => month.days.flatMap(day => day.cards.flatMap(card => card.events)));
+    for (const action of ["print-calendar", "save-calendar-pdf"]) {
+      const button = required(this.root.querySelector<HTMLButtonElement>(`[data-action="${action}"]`));
+      button.disabled = this.printEvents.length === 0;
+      button.title = `Таблица всех событий по текущим фильтрам: ${this.printEvents.length}`;
+    }
     this.renderGroupSuggestions();
     this.renderUpcoming();
     const totalCounts = visibleCounts(allMonths);

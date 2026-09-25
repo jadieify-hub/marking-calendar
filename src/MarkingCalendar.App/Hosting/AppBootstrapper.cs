@@ -178,7 +178,8 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
             CopyBatchAsync,
             CopyNoticeAsync,
             CopyComparisonAsync,
-            ExportCalendarAsync);
+            ExportCalendarAsync,
+            _window.PrintCalendarAsync);
         await _window.InitializeBrowserAsync(router, ReportCommandFailureAsync, cancellationToken);
         _logger.Log(AppLogLevel.Info, "bootstrap", $"Приложение {ProductInfo.Version} готово к работе.");
     }

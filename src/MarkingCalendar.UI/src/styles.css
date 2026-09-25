@@ -462,6 +462,29 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
   .event-dialog { width: 100%; }
 }
 
+.print-actions { display: grid; gap: 7px; }
+.print-calendar { display: none; }
+
+@page { size: A4 landscape; margin: 12mm; }
+@media print {
+  :root, html, body { color-scheme: light; background: white !important; color: black !important; height: auto !important; overflow: visible !important; }
+  body { margin: 0; }
+  #app { height: auto; overflow: visible; }
+  #app > :not(.print-calendar) { display: none !important; }
+  .print-calendar { display: block; font: 10pt/1.4 "Segoe UI", sans-serif; color: black; }
+  .print-calendar h1 { margin: 0 0 3mm; font-size: 18pt; }
+  .print-calendar p { margin: 0 0 3mm; }
+  .print-calendar table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5mm; }
+  .print-calendar thead { display: table-header-group; }
+  .print-calendar th, .print-calendar td { border: 0.2mm solid #999; padding: 2.5mm; vertical-align: top; text-align: left; overflow-wrap: anywhere; white-space: pre-line; }
+  .print-calendar th:nth-child(1) { width: 14%; }
+  .print-calendar th:nth-child(2) { width: 22%; }
+  .print-calendar th:nth-child(3) { width: 19%; }
+  .print-calendar tr { break-inside: avoid; }
+  .print-calendar td p { margin: 1.5mm 0 0; }
+  .print-calendar .print-source { margin-top: 4mm; font-size: 8pt; color: #444; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

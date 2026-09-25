@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly string _browserDataDirectory;
     private Func<string, Task>? _reportCommandFailure;
     private string _titleBarTheme = "dark";
+    private bool _pdfInProgress;
 
     public MainWindow(string browserDataDirectory, IAppLogger? logger = null)
     {
@@ -93,6 +94,51 @@ public partial class MainWindow : Window
         Browser.CoreWebView2.PostWebMessageAsJson(json);
         return Task.CompletedTask;
     }
+
+    public Task PrintCalendarAsync(bool savePdf, CancellationToken cancellationToken) =>
+        UiDispatcher.InvokeAsync(Dispatcher, async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var browser = Browser.CoreWebView2 ?? throw new InvalidOperationException("Интерфейс ещё не готов к печати.");
+            if (_pdfInProgress) return;
+            if (!savePdf)
+            {
+                browser.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
+                return;
+            }
+
+            _pdfInProgress = true;
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    AddExtension = true,
+                    DefaultExt = ".pdf",
+                    Filter = "Документ PDF (*.pdf)|*.pdf",
+                    FileName = $"Календарь маркировки-{DateTime.Today:yyyy-MM-dd}.pdf"
+                };
+                if (dialog.ShowDialog(this) != true) return;
+                var temporary = $"{dialog.FileName}.{Guid.NewGuid():N}.tmp.pdf";
+                try
+                {
+                    var settings = browser.Environment.CreatePrintSettings();
+                    settings.Orientation = CoreWebView2PrintOrientation.Landscape;
+                    settings.PageWidth = 210 / 25.4;
+                    settings.PageHeight = 297 / 25.4;
+                    settings.MarginTop = settings.MarginBottom = settings.MarginLeft = settings.MarginRight = 12 / 25.4;
+                    settings.ShouldPrintHeaderAndFooter = false;
+                    if (!await browser.PrintToPdfAsync(temporary, settings))
+                        throw new IOException("WebView2 не смог создать PDF.");
+                    cancellationToken.ThrowIfCancellationRequested();
+                    File.Move(temporary, dialog.FileName, overwrite: true);
+                }
+                finally
+                {
+                    if (File.Exists(temporary)) File.Delete(temporary);
+                }
+            }
+            finally { _pdfInProgress = false; }
+        });
 
     public void PostOpenChanges(string batchId)
     {

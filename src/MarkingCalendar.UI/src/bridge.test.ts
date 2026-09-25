@@ -84,11 +84,15 @@ describe("connectBridge", () => {
     bridge.send({ type: "refresh" });
     bridge.send({ type: "exportCalendar", eventIds: ["one", "two"] });
     bridge.send({ type: "exportCalendar", eventIds: [""] } as UiCommand);
+    bridge.send({ type: "printCalendar" });
+    bridge.send({ type: "saveCalendarPdf" });
 
     expect(postMessage).toHaveBeenNthCalledWith(1, { type: "ready" });
     expect(postMessage).toHaveBeenNthCalledWith(2, { type: "refresh" });
     expect(postMessage).toHaveBeenNthCalledWith(3, { type: "exportCalendar", eventIds: ["one", "two"] });
-    expect(postMessage).toHaveBeenCalledTimes(3);
+    expect(postMessage).toHaveBeenNthCalledWith(4, { type: "printCalendar" });
+    expect(postMessage).toHaveBeenNthCalledWith(5, { type: "saveCalendarPdf" });
+    expect(postMessage).toHaveBeenCalledTimes(5);
     expect(receive).toHaveBeenCalledOnce();
     expect(receive).toHaveBeenCalledWith(validModel);
     expect(openChanges).toHaveBeenCalledOnce();
