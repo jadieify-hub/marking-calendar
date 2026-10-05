@@ -1,6 +1,8 @@
 {
   "failedGroups": [
-    "chemistry"
+    "chemistry",
+    "electronic_cigarettes",
+    "heating_devices"
   ],
   "jobFailed": false
 }
