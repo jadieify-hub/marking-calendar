@@ -43,7 +43,7 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
         var items = new List<ChangeSummary>();
         items.AddRange(changes.Moved.Select(change => MoveSummary(change, mine)));
         items.AddRange(changes.Added.Select(item => EventSummary(ChangeKind.Added, item, FormatDate(EventDate(item)), [], mine)));
-        items.AddRange(changes.Changed.Select(item => EventSummary(ChangeKind.Changed, item.Current, $"{FormatDate(EventDate(item.Current))} · изменены параметры", item.GetChangedFields(), mine)));
+        items.AddRange(changes.Changed.Select(item => EventSummary(ChangeKind.Changed, item.Current, $"{FormatDate(EventDate(item.Current))} · {ChangedDetail(item, changes.GroupsRenamed)}", item.GetChangedFields(), mine)));
         items.AddRange(changes.Removed.Select(item => EventSummary(ChangeKind.Removed, item, FormatDate(EventDate(item)), [], mine)));
         items.AddRange(changes.GroupsAdded.Select(group => GroupSummary(ChangeKind.GroupAdded,
             "Добавлена товарная группа", group.Name, group.Name, null, mine)));
@@ -65,6 +65,18 @@ public sealed class ChangeSummaryFactory : IChangeSummaryFactory
             changes.GroupsAdded.Count, changes.GroupsRemoved.Count, changes.GroupsRenamed.Count);
         var mineCount = mine.Count == 0 ? 0 : items.Count(item => item.Mine);
         return new ChangeSummaryResult(counts, selected, mineCount, counts.Total - mineCount);
+    }
+
+    public static string ChangedDetail(EventChange change, IReadOnlyList<GroupRenamed> renamed)
+    {
+        var from = GroupKey.Normalize(change.Previous.Group);
+        var to = GroupKey.Normalize(change.Current.Group);
+        var parts = new List<string>(2);
+        if (from != to && !renamed.Any(item => GroupKey.Normalize(item.From) == from && GroupKey.Normalize(item.To) == to))
+            parts.Add($"перенесено из группы «{change.Previous.Group.Trim()}»");
+        if (GroupKey.Normalize(change.Previous.Type) != GroupKey.Normalize(change.Current.Type))
+            parts.Add($"тип был «{change.Previous.Type.Trim()}»");
+        return parts.Count == 0 ? "изменены параметры" : string.Join(" · ", parts);
     }
 
     private static ChangeSummary GroupSummary(ChangeKind kind, string title, string detail, string name,

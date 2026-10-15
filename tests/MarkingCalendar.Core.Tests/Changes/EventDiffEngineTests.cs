@@ -150,7 +150,7 @@ public sealed class EventDiffEngineTests
     }
 
     [Fact]
-    public void Compare_DoesNotRenameGroupsWhenDominantLinksDiffer()
+    public void Compare_RenamesGroupWithNewLinkWhenAllEventsReappearUnchanged()
     {
         var previous = new[]
         {
@@ -166,9 +166,99 @@ public sealed class EventDiffEngineTests
 
         var result = new EventDiffEngine().Compare(previous, current);
 
+        Assert.Equal(new GroupRenamed("Медицинские изделия", "Медицинские изделия 2.0"), Assert.Single(result.GroupsRenamed));
+        Assert.Equal(0, result.Total);
+    }
+
+    [Fact]
+    public void Compare_DoesNotRenameGroupsWhenLinksAndEventsDiffer()
+    {
+        var previous = new[] { E("2026-10-01", group: "Медицинские изделия", stage: "Первый", url: "https://example.test/business/projects/medical_devices/") };
+        var current = new[] { E("2026-10-01", group: "Медицинские изделия 2.0", stage: "Первый", description: "Другое описание", url: "https://example.test/business/projects/medproducts/") };
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
         Assert.Empty(result.GroupsRenamed);
+        Assert.Single(result.GroupsAdded);
+        Assert.Single(result.GroupsRemoved);
+    }
+
+    [Fact]
+    public void Compare_RenamesBothGroupsMergedUnderNewName()
+    {
+        var previous = new[]
+        {
+            E("2026-10-01", group: "Пиво", stage: "Пиво", url: "https://example.test/beer/"),
+            E("2026-11-01", group: "Слабый алкоголь", stage: "Сидр", url: "https://example.test/low_alcohol/")
+        };
+        var current = previous.Select(item => item with { Id = item.Id + "-merged", Group = "Пиво и слабоалкогольные напитки" }).ToArray();
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
+        Assert.Equal(2, result.GroupsRenamed.Count);
+        Assert.Empty(result.GroupsRemoved);
+        Assert.Empty(result.GroupsAdded);
+        Assert.Equal(0, result.Total);
+    }
+
+    [Fact]
+    public void Compare_ReportsEventsSplitIntoNewGroupAsRegroupedNotAddedAndRemoved()
+    {
+        var previous = new[]
+        {
+            E("2026-10-01", group: "Молочная продукция", stage: "Молоко"),
+            E("2026-11-01", group: "Молочная продукция", stage: "Мороженое")
+        };
+        var current = new[] { previous[0], previous[1] with { Id = "split", Group = "Мороженое" } };
+
+        var result = new EventDiffEngine().Compare(previous, current);
+        var change = Assert.Single(result.Changed);
+        var summary = Assert.Single(new ChangeSummaryFactory().Create(result, 10, new DateOnly(2026, 9, 1), new HashSet<string>()).Items,
+            item => item.Kind == ChangeKind.Changed);
+
+        Assert.Empty(result.Added);
+        Assert.Empty(result.Removed);
+        Assert.Equal("Мороженое", change.Current.Group);
+        Assert.Contains("перенесено из группы «Молочная продукция»", summary.Detail);
+        Assert.Contains("перенесено из группы «Молочная продукция»", ChangeMarkdownFormatter.Format(new ChangeHistory(
+            [new ChangeBatch("b", DateTimeOffset.UnixEpoch, result, "p", "c", ChangeBatchSources.Public)])));
+    }
+
+    [Fact]
+    public void Compare_ReportsRenamedEventTypeAsChangedNotAddedAndRemoved()
+    {
+        var previous = new[] { E("2026-10-01", stage: "Первый"), E("2026-11-01", stage: "Второй") };
+        var current = previous.Select(item => item with { Id = item.Id + "-type", Type = "Розничная продажа (новая редакция)" }).ToArray();
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
+        Assert.Equal(2, result.Changed.Count);
+        Assert.Empty(result.Added);
+        Assert.Empty(result.Removed);
+        Assert.Contains("тип был «Розничная продажа»", ChangeSummaryFactory.ChangedDetail(result.Changed[0], []));
+    }
+
+    [Fact]
+    public void Compare_DoesNotPairAmbiguousRegroupedEvents()
+    {
+        var previous = new[] { E("2026-10-01", group: "А", stage: "Запрет"), E("2026-10-01", group: "Б", stage: "Запрет") };
+        var current = previous.Select(item => item with { Id = item.Id + "-x", Group = item.Group + "1", Type = "Другое" }).ToArray();
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
+        Assert.Empty(result.Changed);
         Assert.Equal(2, result.Added.Count);
-        Assert.Equal(2, result.Removed.Count);
+    }
+
+    [Fact]
+    public void Compare_IgnoresDateWordingWhenDatesDidNotMove()
+    {
+        var previous = E("2026-10-01");
+        var current = previous with { Id = "reworded", Period = "1 октября 2026" };
+
+        var result = new EventDiffEngine().Compare([previous], [current]);
+
+        Assert.False(result.HasChanges);
     }
 
     [Theory]

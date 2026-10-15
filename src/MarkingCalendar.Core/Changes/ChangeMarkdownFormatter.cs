@@ -28,7 +28,7 @@ public static class ChangeMarkdownFormatter
             lines.Add($"## {BatchTitle(batch)}");
             AppendSection(lines, "Перенесено", batch.Changes.Moved, AppendMoved);
             AppendSection(lines, "Добавлено", batch.Changes.Added, AppendEvent);
-            AppendSection(lines, "Изменено", batch.Changes.Changed, AppendChanged);
+            AppendSection(lines, "Изменено", batch.Changes.Changed, (output, change) => AppendChanged(output, change, batch.Changes.GroupsRenamed));
             AppendSection(lines, "Удалено", batch.Changes.Removed, AppendEvent);
             AppendSection(lines, "Добавлены товарные группы", batch.Changes.GroupsAdded, (target, group) => target.Add($"- {Escape(group.Name)}"));
             AppendSection(lines, "Удалены товарные группы", batch.Changes.GroupsRemoved, (target, group) => target.Add($"- {Escape(group.Name)}"));
@@ -66,9 +66,11 @@ public static class ChangeMarkdownFormatter
         AppendChangedFields(lines, change.GetChangedFields());
     }
 
-    private static void AppendChanged(List<string> lines, EventChange change)
+    private static void AppendChanged(List<string> lines, EventChange change, IReadOnlyList<GroupRenamed> renamed)
     {
-        lines.Add($"- {EventPrefix(change.Current)}: {Date(change.Current)}. {Escape(change.Current.Stage)}");
+        var detail = ChangeSummaryFactory.ChangedDetail(change, renamed);
+        var note = detail == "изменены параметры" ? "" : $" ({Escape(detail)})";
+        lines.Add($"- {EventPrefix(change.Current)}: {Date(change.Current)}. {Escape(change.Current.Stage)}{note}");
         AppendChangedFields(lines, change.GetChangedFields());
     }
 

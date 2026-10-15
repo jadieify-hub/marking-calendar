@@ -32,6 +32,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
         PairByIdentity(previous, current, aliases, usedPrevious, usedCurrent, moved, changed, previousIds);
         PairWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, changed, previousIds);
         PairTolerantWordingEdits(previous, current, aliases, usedPrevious, usedCurrent, moved, changed, previousIds);
+        PairRegrouped(previous, current, usedPrevious, usedCurrent, changed, previousIds);
 
         var added = current.Where((_, index) => !usedCurrent.Contains(index)).ToArray();
         var removed = previous.Where((_, index) => !usedPrevious.Contains(index)).ToArray();
@@ -158,6 +159,40 @@ public sealed class EventDiffEngine : IEventDiffEngine
             changed.Add(EventChange.Changed(previous[previousIndex], candidate));
         }
     }
+
+    // Last resort for an event that kept its dates and text but changed group or type
+    // (a group split, a single event moved, a type renamed). Only unambiguous matches are paired.
+    private static void PairRegrouped(
+        IReadOnlyList<CalendarEvent> previous,
+        IReadOnlyList<CalendarEvent> current,
+        HashSet<int> usedPrevious,
+        HashSet<int> usedCurrent,
+        List<EventChange> changed,
+        Dictionary<string, string> previousIds)
+    {
+        static Dictionary<string, int> Unique(IReadOnlyList<CalendarEvent> events, HashSet<int> used) => events
+            .Select((item, index) => (item, index))
+            .Where(pair => !used.Contains(pair.index))
+            .GroupBy(pair => TextKey(pair.item), StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .ToDictionary(group => group.Key, group => group.Single().index, StringComparer.Ordinal);
+
+        var previousByText = Unique(previous, usedPrevious);
+        foreach (var (key, currentIndex) in Unique(current, usedCurrent))
+        {
+            if (!previousByText.TryGetValue(key, out var previousIndex)) continue;
+            usedPrevious.Add(previousIndex);
+            usedCurrent.Add(currentIndex);
+            previousIds[current[currentIndex].Id] = previous[previousIndex].Id;
+            changed.Add(EventChange.Changed(previous[previousIndex], current[currentIndex]));
+        }
+    }
+
+    private static string TextKey(CalendarEvent item) => string.Join('|',
+        item.Start?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+        item.End?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+        Normalize(item.Stage),
+        Normalize(item.Description));
 
     private static (int Previous, int Current) ClosestPair(
         IReadOnlyList<int> previousIndexes,
@@ -378,23 +413,23 @@ public sealed class EventDiffEngine : IEventDiffEngine
         return score > 0.5 ? new RenameCandidate(oldGroup, newGroup, score) : null;
     }
 
-    // The source sometimes folds a group into an existing one: every event reappears there
-    // unchanged except for the group name and, possibly, the link. Treat that as a rename.
+    // A vanished group whose every event reappears unchanged in one group (existing or new,
+    // with the same or another link) was renamed or folded into it.
     private static RenameCandidate? MergeCandidate(
         GroupBucket oldGroup,
         IReadOnlyDictionary<string, GroupBucket> previousGroups,
         IReadOnlyDictionary<string, GroupBucket> currentGroups)
     {
         var targets = currentGroups.Values
-            .Where(target => previousGroups.TryGetValue(target.Key, out var before) && ReceivedAll(oldGroup, before, target))
+            .Where(target => ReceivedAll(oldGroup, previousGroups.GetValueOrDefault(target.Key), target))
             .ToArray();
         return targets.Length == 1 ? new RenameCandidate(oldGroup, targets[0], 1) : null;
     }
 
-    private static bool ReceivedAll(GroupBucket oldGroup, GroupBucket targetBefore, GroupBucket targetNow)
+    private static bool ReceivedAll(GroupBucket oldGroup, GroupBucket? targetBefore, GroupBucket targetNow)
     {
         var arrivals = targetNow.Events.Select(item => ContentKey(item, string.Empty, ignoreUrl: true)).ToList();
-        foreach (var item in targetBefore.Events) arrivals.Remove(ContentKey(item, string.Empty, ignoreUrl: true));
+        foreach (var item in targetBefore?.Events ?? []) arrivals.Remove(ContentKey(item, string.Empty, ignoreUrl: true));
         return oldGroup.Events.All(item => arrivals.Remove(ContentKey(item, string.Empty, ignoreUrl: true)));
     }
 
@@ -429,7 +464,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
     private static string ContentKey(CalendarEvent item, string groupKey, bool ignoreUrl = false) => string.Join('|',
         item.Start?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
         item.End?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
-        item.Period,
+        item.Start is null && item.End is null ? item.Period : "",
         groupKey,
         item.Type,
         item.Stage,
