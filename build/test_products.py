@@ -194,6 +194,18 @@ class ProductTests(unittest.TestCase):
             changed = json.loads(path.read_text(encoding="utf-8"))
             self.assertNotEqual(old["revision"], changed["revision"])
 
+    def test_rename_changes_revision_but_keeps_list_change_date(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
+            products.check(directory)
+            path = Path(directory) / "products.json"
+            old = json.loads(path.read_text(encoding="utf-8"))
+            old["groups"][0]["revision"] = "computed-with-old-name"
+            path.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+            products.check(directory)
+            new = json.loads(path.read_text(encoding="utf-8"))["groups"][0]
+            self.assertNotEqual("computed-with-old-name", new["revision"])
+            self.assertEqual(old["groups"][0]["changedAt"], new["changedAt"])
+
     def test_dry_run_writes_nothing_but_partial_first_fetch_publishes_valid_groups(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
             self.assertEqual(0, products.check(directory, dry_run=True))

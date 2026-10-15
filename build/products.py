@@ -459,9 +459,12 @@ def check(data_dir, dry_run=False):
             revision = digest({"name": meta["name"], "sourceUrl": url, **content})
             old = before.get(group_id)
             is_changed = old is None or old["revision"] != revision
+            source_hash = digest(source_content)
+            # Renames and new goodsUrl change the revision, but "Перечень изменён" tracks the list itself.
+            content_changed = old is None or old.get("sourceHash") != source_hash
             group = {"id": group_id, "name": meta["name"], "sourceUrl": url,
-                     "sourceHash": digest(source_content), "revision": revision,
-                     "changedAt": now if is_changed else old["changedAt"], "checkedAt": now, **content}
+                     "sourceHash": source_hash, "revision": revision,
+                     "changedAt": now if content_changed else old["changedAt"], "checkedAt": now, **content}
             result.append(group)
             (changed if is_changed else unchanged).append(group_id)
             for row in content["rows"]:

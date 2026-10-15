@@ -26,7 +26,7 @@ def current_state(log, groups, previous, exit_code, job_failed):
 def messages(log, groups, run_url, previous, current):
     names = {g["link"].rstrip("/").split("/")[-1]: g["name"] for g in groups}
     failed = set(current["failedGroups"]) - set(previous["failedGroups"])
-    recovered = set(previous["failedGroups"]) - set(current["failedGroups"])
+    recovered = (set(previous["failedGroups"]) - set(current["failedGroups"])) & names.keys()
     if not failed and not recovered and current["jobFailed"] == previous["jobFailed"]:
         return []
     lines = ["Календарь маркировки: состояние проверки товарных перечней изменилось."]
@@ -53,7 +53,8 @@ def messages(log, groups, run_url, previous, current):
 
 def main(root=None):
     root = root or Path(__file__).resolve().parents[1]
-    groups = json.loads((root / "assets/groups/groups.json").read_text(encoding="utf-8-sig"))["groups"]
+    groups = [g for g in json.loads((root / "assets/groups/groups.json").read_text(encoding="utf-8-sig"))["groups"]
+              if g.get("goodsPath") is not False]
     log_path = root / "products-check.log"
     log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
     state_path = root / "data/products-alert-state.json"

@@ -81,6 +81,21 @@ class AlertTests(unittest.TestCase):
                 self.assertEqual({"failedGroups": ["milk"], "jobFailed": True},
                                  current_state(log, groups, previous, exit_code, False))
 
+    def test_group_without_goods_page_is_not_expected_or_reported_as_recovered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "assets/groups").mkdir(parents=True)
+            groups = [{"name": "Молоко", "link": "/milk/"}, {"name": "Гигиена", "link": "/chemistry/", "goodsPath": False}]
+            (root / "assets/groups/groups.json").write_text(json.dumps({"groups": groups}), encoding="utf-8")
+            (root / "data").mkdir()
+            (root / "data/products-alert-state.json").write_text('{"failedGroups": ["chemistry"], "jobFailed": false}', encoding="utf-8")
+            (root / "products-check.log").write_text("\n".join(["PRODUCTS_CHANGED=", "PRODUCTS_UNCHANGED=milk", "PRODUCTS_FAILED="]), encoding="utf-8")
+            env = {"GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "owner/repo", "GITHUB_RUN_ID": "1",
+                   "PRODUCTS_JOB_RESULT": "success", "PRODUCTS_CHECK_EXIT_CODE": "0"}
+            with patch.dict("os.environ", env), patch("products_alert.urlopen") as send:
+                self.assertEqual(0, main(root))
+            send.assert_not_called()
+
     def test_names_reasons_and_run_link_survive_message_splitting(self):
         groups = [{"name": f"Группа {i}", "link": f"/business/projects/g{i}/"} for i in range(50)]
         log = "\n".join(f"g{i}: Не найдена таблица " + "x" * 100 for i in range(50))
