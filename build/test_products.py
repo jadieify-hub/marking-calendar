@@ -19,8 +19,6 @@ def html(group):
 
 def fetch(url):
     group = url.split("/projects/")[1].split("/")[0]
-    if group == "chemistry":
-        raise OSError("HTTP 404: source unavailable")
     if url.endswith("/faq/"):
         return (FIXTURES.parent / "product-scopes" / f"{group}.html").read_text(encoding="utf-8")
     return html(group)
@@ -164,7 +162,7 @@ class ProductTests(unittest.TestCase):
 
     def test_failed_group_is_retained_while_another_group_updates(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
-            self.assertEqual(2, products.check(directory))  # Retired chemistry URL returns 404.
+            self.assertEqual(0, products.check(directory))  # Retired chemistry has goodsPath: false and is skipped.
             path = Path(directory) / "products.json"
             old = json.loads(path.read_text(encoding="utf-8"))
             expected = {g["link"].strip("/").split("/")[-1]
@@ -198,7 +196,7 @@ class ProductTests(unittest.TestCase):
 
     def test_dry_run_writes_nothing_but_partial_first_fetch_publishes_valid_groups(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(products, "fetch_page", side_effect=fetch):
-            self.assertEqual(2, products.check(directory, dry_run=True))
+            self.assertEqual(0, products.check(directory, dry_run=True))
             self.assertEqual([], list(Path(directory).iterdir()))
             with patch.object(products, "fetch_page", side_effect=lambda url: "<html></html>" if "/homeware/" in url else fetch(url)):
                 self.assertEqual(2, products.check(directory))
@@ -206,7 +204,7 @@ class ProductTests(unittest.TestCase):
             first = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(48, len(first["groups"]))
             self.assertNotIn("homeware", {g["id"] for g in first["groups"]})
-            self.assertEqual(2, products.check(directory))
+            self.assertEqual(0, products.check(directory))
             self.assertEqual(49, len(json.loads(path.read_text(encoding="utf-8"))["groups"]))
 
     def test_total_first_failure_does_not_create_empty_catalog(self):

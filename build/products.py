@@ -439,7 +439,7 @@ def check(data_dir, dry_run=False):
     meanings_path = ROOT / "assets/products/names.json"
     meanings = json.loads(meanings_path.read_text(encoding="utf-8-sig"))["codes"] if meanings_path.exists() else {}
     group_map = json.loads((ROOT / "assets/groups/groups.json").read_text(encoding="utf-8-sig"))
-    metadata = {urlsplit(g["link"]).path.rstrip("/").split("/")[-1]: g for g in group_map["groups"]}
+    metadata = {urlsplit(g["link"]).path.rstrip("/").split("/")[-1]: g for g in group_map["groups"] if g.get("goodsPath") is not False}
     now = datetime.now(timezone.utc).isoformat()
     changed, unchanged, failed, unknown, result = [], [], [], set(), []
     for group_id in metadata:
