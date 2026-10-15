@@ -407,7 +407,8 @@ public sealed class AppBootstrapperTests
             }) { IsBackground = true };
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
-            var initialized = await ready.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            // Thread start always completes or faults; the bound only covers cold WPF startup on CI.
+            var initialized = await ready.Task.WaitAsync(TimeSpan.FromSeconds(60));
             return new Fixture(root, thread, initialized.Dispatcher, initialized.Bootstrapper, store, logger);
         }
 

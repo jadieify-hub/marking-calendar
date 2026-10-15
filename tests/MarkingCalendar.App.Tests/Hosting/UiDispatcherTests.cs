@@ -20,7 +20,8 @@ public sealed class UiDispatcherTests
         dispatcherThread.SetApartmentState(ApartmentState.STA);
         dispatcherThread.Start();
 
-        var dispatcher = await dispatcherReady.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Thread start always completes; the bound only covers cold startup on CI.
+        var dispatcher = await dispatcherReady.Task.WaitAsync(TimeSpan.FromSeconds(60));
         int? operationThreadId = null;
         ApartmentState? operationApartment = null;
         try
