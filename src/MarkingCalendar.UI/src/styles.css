@@ -259,6 +259,11 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 .change-count span { color: var(--muted); font-size: 11.5px; }
 .history-count { padding: 8px 10px; }
 .history-count strong { font-size: 16px; }
+button.change-count { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.change-count:hover:not(:disabled) { border-color: var(--accent); }
+button.change-count[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+button.change-count:disabled { cursor: default; opacity: .55; }
+.change-kind-empty { margin: 0; padding: 12px 0; color: var(--muted); font-size: 13px; }
 .change-row { display: grid; grid-template-columns: 27px 1fr; gap: 9px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line-soft); }
 .change-marker { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--surface-soft); font-weight: 800; }
 .change-row > span:last-child { display: grid; gap: 2px; }

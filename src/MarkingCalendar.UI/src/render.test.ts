@@ -1467,6 +1467,40 @@ describe("renderApp", () => {
     expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(2);
   });
 
+  it("filters history and comparison by change kind when a count tile is clicked", () => {
+    const root = document.createElement("div");
+    const added = { kind: "added" as const, title: "Игрушки — Старт", detail: "01.10.2026", stage: "", changedFields: [], mine: false, groupKey: "игрушки" };
+    const removed = { kind: "removed" as const, title: "Обувь — Запрет", detail: "01.11.2026", stage: "", changedFields: [], mine: false, groupKey: "обувь" };
+    const counts = { moved: 0, added: 1, changed: 0, removed: 1, total: 2 };
+    renderApp(root, {
+      ...model,
+      comparison: { baseRetrievedAt: "01.08.2026, 10:00", counts, mineCount: 0, othersCount: 2, items: [added, removed] },
+      history: { unreadCount: 0, batches: [
+        { id: "kinds", checkedAt: "02.09.2026, 10:00", isUnread: false, counts, mineCount: 0, othersCount: 2, items: [added, removed] },
+        { id: "only-added", checkedAt: "01.09.2026, 10:00", isUnread: false, counts: { ...counts, removed: 0, total: 1 }, mineCount: 0, othersCount: 1, items: [added] },
+      ] },
+    }, vi.fn());
+    root.querySelector<HTMLButtonElement>('[data-view="changes"]')?.click();
+
+    expect(root.querySelector<HTMLButtonElement>('[data-batch-id="kinds"] [data-change-kind="moved"]')?.disabled).toBe(true);
+    expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(3);
+    expect(root.querySelectorAll(".update-dialog [data-change-kind]")).toHaveLength(0);
+
+    root.querySelector<HTMLButtonElement>('[data-batch-id="kinds"] [data-change-kind="removed"]')?.click();
+    expect(root.querySelector('[data-batch-id="kinds"] [data-change-kind="removed"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelectorAll('[data-batch-id="kinds"] .change-row')).toHaveLength(1);
+    expect(root.querySelector('[data-batch-id="kinds"]')?.textContent).toContain("Обувь");
+    expect(root.querySelector('[data-batch-id="kinds"]')?.textContent).not.toContain("Игрушки — Старт");
+    expect(root.querySelector('[data-batch-id="only-added"] .change-kind-empty')?.textContent).toBe("Изменений этого вида нет");
+    expect(root.querySelectorAll(".comparison-result .change-row")).toHaveLength(1);
+    expect(root.querySelector(".comparison-result")?.textContent).not.toContain("Игрушки — Старт");
+
+    root.querySelector<HTMLButtonElement>('.comparison-result [data-change-kind="removed"]')?.click();
+    expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(3);
+    expect(root.querySelectorAll(".comparison-result .change-row")).toHaveLength(2);
+    expect(root.querySelector('[data-batch-id="kinds"] [data-change-kind="removed"]')?.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("requests an archive comparison and renders a temporary result above history", () => {
     const root = document.createElement("div");
     const send = vi.fn();

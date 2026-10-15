@@ -30,6 +30,8 @@ const MONTHS = [
 ] as const;
 const WEEKDAYS = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const;
 const RU_COLLATOR = new Intl.Collator("ru-RU", { sensitivity: "base" });
+type ChangeFilterKind = ChangeSummaryViewModel["kind"];
+
 const CHANGE_LABELS = {
   moved: "Перенесено",
   added: "Добавлено",
@@ -117,6 +119,7 @@ interface UiState {
   guideStep: number | null;
   theme: ThemePreference;
   historyMode: "mine" | "all";
+  changeKind: ChangeFilterKind | null;
   hasSelectedGroups: boolean;
   selectedArchiveId: string;
   dismissedComparisonBase: string | null;
@@ -158,6 +161,7 @@ class TimelineRenderer implements MountedApp {
     guideStep: null,
     theme: "auto",
     historyMode: "all",
+    changeKind: null,
     hasSelectedGroups: false,
     selectedArchiveId: "",
     dismissedComparisonBase: null,
@@ -455,6 +459,14 @@ class TimelineRenderer implements MountedApp {
       this.state.historyMode = button.dataset.historyMode === "mine" ? "mine" : "all";
       this.renderHistory();
     }));
+    required(this.root.querySelector<HTMLElement>(".changes-view")).addEventListener("click", (event) => {
+      const tile = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-change-kind]") : null;
+      const kind = tile?.dataset.changeKind as ChangeFilterKind | undefined;
+      if (!kind || tile?.disabled) return;
+      this.state.changeKind = this.state.changeKind === kind ? null : kind;
+      this.renderHistory();
+      this.renderComparison();
+    });
     required(this.root.querySelector<HTMLElement>(".history-list")).addEventListener("click", (event) => {
       const copy = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-copy-batch]") : null;
       if (copy?.dataset.copyBatch) {
@@ -1180,6 +1192,7 @@ class TimelineRenderer implements MountedApp {
       this.state.expandedHistoryBatchIds,
       this.state.selectedGroups,
       new Set(this.requireModel().groups.map(group => group.key)),
+      this.state.changeKind,
     );
   }
 
@@ -1232,8 +1245,10 @@ class TimelineRenderer implements MountedApp {
     actions.className = "comparison-actions";
     actions.append(copy, close);
     header.append(title, actions);
-    container.append(header, renderChangeCounts(comparison.counts, "history"));
-    for (const item of comparison.items) container.append(summaryRow(item));
+    container.append(header, renderChangeCounts(comparison.counts, "history", this.state.changeKind));
+    const items = filterByKind(comparison.items, this.state.changeKind);
+    for (const item of items) container.append(summaryRow(item));
+    if (this.state.changeKind !== null && items.length === 0) container.append(kindEmpty());
   }
 
   private renderViews(): void {
@@ -2271,6 +2286,7 @@ function renderHistory(
   expandedBatchIds: ReadonlySet<string>,
   selectedGroups: ReadonlySet<string>,
   knownGroups: ReadonlySet<string>,
+  kind: ChangeFilterKind | null,
 ): void {
   container.replaceChildren();
   if (batches.length === 0) {
@@ -2288,14 +2304,17 @@ function renderHistory(
     heading.textContent = batch.checkedAt;
     const total = document.createElement("p");
     total.textContent = pluralNoun(batch.counts.total, "изменение", "изменения", "изменений");
-    article.append(heading, total, renderChangeCounts(batch.counts, "history"));
+    article.append(heading, total, renderChangeCounts(batch.counts, "history", kind));
+    const items = filterByKind(batch.items, kind);
     const showAll = mode === "all" || expandedBatchIds.has(batch.id);
-    const mine = batch.items.filter(entry => {
+    const mine = items.filter(entry => {
       const keys = [entry.groupKey, entry.previousGroupKey].filter((key): key is string => !!key);
       return keys.some(key => selectedGroups.has(key)) || (!keys.some(key => knownGroups.has(key)) && entry.mine);
     });
-    const othersCount = batch.items.length - mine.length;
-    for (const item of showAll ? batch.items : mine) article.append(summaryRow(item));
+    const othersCount = items.length - mine.length;
+    const shown = showAll ? items : mine;
+    for (const item of shown) article.append(summaryRow(item));
+    if (kind !== null && shown.length === 0 && othersCount === 0) article.append(kindEmpty());
     if (mode === "mine" && othersCount > 0 && !showAll) {
       const others = document.createElement("button");
       others.type = "button";
@@ -2314,31 +2333,49 @@ function renderHistory(
   }
 }
 
-function renderChangeCounts(counts: ChangeCountsViewModel, context: "history" | "notice"): HTMLElement {
+function renderChangeCounts(
+  counts: ChangeCountsViewModel,
+  context: "history" | "notice",
+  active: ChangeFilterKind | null = null,
+): HTMLElement {
   const grid = document.createElement("div");
   grid.className = `change-counts ${context}-counts`;
-  for (const [kind, value] of [["moved", counts.moved], ["added", counts.added], ["changed", counts.changed], ["removed", counts.removed]] as const) {
-    const count = document.createElement("div");
-    count.className = `change-count ${context}-count change-${kind}`;
-    const number = document.createElement("strong");
-    number.textContent = String(value);
-    const label = document.createElement("span");
-    label.textContent = CHANGE_LABELS[kind];
-    count.append(number, label);
-    grid.append(count);
-  }
-  for (const [label, value] of [["Новые группы", counts.groupsAdded ?? 0], ["Переименовано групп", counts.groupsRenamed ?? 0], ["Удалено групп", counts.groupsRemoved ?? 0]] as const) {
-    if (value === 0) continue;
-    const count = document.createElement("div");
-    count.className = `change-count ${context}-count change-group`;
+  const appendTile = (kind: ChangeFilterKind, label: string, value: number, extra: string): void => {
+    const tile = document.createElement(context === "history" ? "button" : "div");
+    tile.className = `change-count ${context}-count ${extra}`;
+    if (tile instanceof HTMLButtonElement) {
+      tile.type = "button";
+      tile.dataset.changeKind = kind;
+      tile.disabled = value === 0;
+      tile.setAttribute("aria-pressed", String(active === kind));
+    }
     const number = document.createElement("strong");
     number.textContent = String(value);
     const caption = document.createElement("span");
     caption.textContent = label;
-    count.append(number, caption);
-    grid.append(count);
+    tile.append(number, caption);
+    grid.append(tile);
+  };
+  for (const kind of ["moved", "added", "changed", "removed"] as const) appendTile(kind, CHANGE_LABELS[kind], counts[kind], `change-${kind}`);
+  for (const [kind, label, value] of [
+    ["groupAdded", "Новые группы", counts.groupsAdded ?? 0],
+    ["groupRenamed", "Переименовано групп", counts.groupsRenamed ?? 0],
+    ["groupRemoved", "Удалено групп", counts.groupsRemoved ?? 0],
+  ] as const) {
+    if (value !== 0) appendTile(kind, label, value, "change-group");
   }
   return grid;
+}
+
+function filterByKind<T extends { readonly kind: ChangeFilterKind }>(items: ReadonlyArray<T>, kind: ChangeFilterKind | null): ReadonlyArray<T> {
+  return kind === null ? items : items.filter((item) => item.kind === kind);
+}
+
+function kindEmpty(): HTMLElement {
+  const empty = document.createElement("p");
+  empty.className = "change-kind-empty";
+  empty.textContent = "Изменений этого вида нет";
+  return empty;
 }
 
 function summaryRow(item: ChangeSummaryViewModel): HTMLElement {
