@@ -114,8 +114,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
                 {
                     moved.Add(EventChange.Moved(oldEvent, newEvent));
                 }
-                else if (ContentKey(oldEvent, CanonicalGroup(oldEvent, true, aliases))
-                    != ContentKey(newEvent, CanonicalGroup(newEvent, false, aliases)))
+                else if (!SameContent(oldEvent, newEvent, aliases))
                 {
                     changed.Add(EventChange.Changed(oldEvent, newEvent));
                 }
@@ -323,6 +322,13 @@ public sealed class EventDiffEngine : IEventDiffEngine
             })
             .OfType<RenameCandidate>()
             .ToArray();
+        var selectedOld = selected.Select(candidate => candidate.Old.Key).ToHashSet(StringComparer.Ordinal);
+        selected = selected
+            .Concat(removed
+                .Where(key => !selectedOld.Contains(key))
+                .Select(key => MergeCandidate(previousGroups[key], previousGroups, currentGroups))
+                .OfType<RenameCandidate>())
+            .ToArray();
         var renamedOld = selected.Select(candidate => candidate.Old.Key).ToHashSet(StringComparer.Ordinal);
         var renamedNew = selected.Select(candidate => candidate.New.Key).ToHashSet(StringComparer.Ordinal);
 
@@ -372,6 +378,26 @@ public sealed class EventDiffEngine : IEventDiffEngine
         return score > 0.5 ? new RenameCandidate(oldGroup, newGroup, score) : null;
     }
 
+    // The source sometimes folds a group into an existing one: every event reappears there
+    // unchanged except for the group name and, possibly, the link. Treat that as a rename.
+    private static RenameCandidate? MergeCandidate(
+        GroupBucket oldGroup,
+        IReadOnlyDictionary<string, GroupBucket> previousGroups,
+        IReadOnlyDictionary<string, GroupBucket> currentGroups)
+    {
+        var targets = currentGroups.Values
+            .Where(target => previousGroups.TryGetValue(target.Key, out var before) && ReceivedAll(oldGroup, before, target))
+            .ToArray();
+        return targets.Length == 1 ? new RenameCandidate(oldGroup, targets[0], 1) : null;
+    }
+
+    private static bool ReceivedAll(GroupBucket oldGroup, GroupBucket targetBefore, GroupBucket targetNow)
+    {
+        var arrivals = targetNow.Events.Select(item => ContentKey(item, string.Empty, ignoreUrl: true)).ToList();
+        foreach (var item in targetBefore.Events) arrivals.Remove(ContentKey(item, string.Empty, ignoreUrl: true));
+        return oldGroup.Events.All(item => arrivals.Remove(ContentKey(item, string.Empty, ignoreUrl: true)));
+    }
+
     private static string TypeStageKey(CalendarEvent item) =>
         string.Join('|', Normalize(item.Type), Normalize(item.Stage));
 
@@ -392,7 +418,15 @@ public sealed class EventDiffEngine : IEventDiffEngine
         IReadOnlyDictionary<string, string> aliases) =>
         string.Join('|', CanonicalGroup(item, previous, aliases), Normalize(item.Type));
 
-    private static string ContentKey(CalendarEvent item, string groupKey) => string.Join('|',
+    // A renamed or merged group may move to another page; that alone is not an edit of its events.
+    private static bool SameContent(CalendarEvent oldEvent, CalendarEvent newEvent, IReadOnlyDictionary<string, string> aliases)
+    {
+        var groupRenamed = aliases.ContainsKey(GroupKey.Normalize(oldEvent.Group));
+        return ContentKey(oldEvent, CanonicalGroup(oldEvent, true, aliases), groupRenamed)
+            == ContentKey(newEvent, CanonicalGroup(newEvent, false, aliases), groupRenamed);
+    }
+
+    private static string ContentKey(CalendarEvent item, string groupKey, bool ignoreUrl = false) => string.Join('|',
         item.Start?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
         item.End?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
         item.Period,
@@ -400,7 +434,7 @@ public sealed class EventDiffEngine : IEventDiffEngine
         item.Type,
         item.Stage,
         item.Description,
-        item.Url?.AbsoluteUri ?? "");
+        ignoreUrl ? "" : item.Url?.AbsoluteUri ?? "");
 
     private static string CanonicalGroup(
         CalendarEvent item,

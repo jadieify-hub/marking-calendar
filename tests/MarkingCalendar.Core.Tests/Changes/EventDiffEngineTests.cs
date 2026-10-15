@@ -171,6 +171,50 @@ public sealed class EventDiffEngineTests
         Assert.Equal(2, result.Removed.Count);
     }
 
+    [Theory]
+    [InlineData("https://example.test/business/projects/dietarysup/")]
+    [InlineData("https://example.test/business/projects/sportpit/")]
+    public void Compare_ReportsGroupFoldedIntoExistingGroupAsRename(string newUrl)
+    {
+        const string merged = "Специализированная пищевая продукция и БАД к пище";
+        var existing = E("2025-01-01", group: merged, stage: "Спортпит", url: "https://example.test/business/projects/sportpit/");
+        var previous = new[]
+        {
+            existing,
+            E("2024-03-01", group: "БАД", stage: "Первый", url: "https://example.test/business/projects/dietarysup/"),
+            E("2025-03-01", group: "БАД", stage: "Второй", url: "https://example.test/business/projects/dietarysup/")
+        };
+        var current = previous.Skip(1).Select(item => item with
+        {
+            Id = item.Id + "-merged",
+            Group = merged,
+            Url = new Uri(newUrl)
+        }).Prepend(existing).ToArray();
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
+        Assert.Equal(new GroupRenamed("БАД", merged), Assert.Single(result.GroupsRenamed));
+        Assert.Empty(result.GroupsRemoved);
+        Assert.Equal(0, result.Total);
+    }
+
+    [Fact]
+    public void Compare_DoesNotFoldGroupWhenItsEventsDidNotAllArrive()
+    {
+        var previous = new[]
+        {
+            E("2025-01-01", group: "Косметика", stage: "Есть"),
+            E("2025-02-01", group: "Гигиена", stage: "Первый"),
+            E("2025-03-01", group: "Гигиена", stage: "Второй")
+        };
+        var current = new[] { previous[0], previous[1] with { Id = "moved", Group = "Косметика" } };
+
+        var result = new EventDiffEngine().Compare(previous, current);
+
+        Assert.Empty(result.GroupsRenamed);
+        Assert.Equal("Гигиена", Assert.Single(result.GroupsRemoved).Name);
+    }
+
     [Fact]
     public void Compare_DetectsRenameByEventsWhenOneGroupHasNoLink()
     {
