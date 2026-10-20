@@ -48,6 +48,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
     private PublicHistoryClient? _publicHistoryClient;
     private GroupMap? _groupMap;
     private GroupMap? _bundledGroupMap;
+    private readonly HashSet<string> _loggedGroupConflicts = new(StringComparer.Ordinal);
     private ProductCatalog? _productCatalog;
     private ProductCatalogViewModel? _products;
     private bool _hasDownloadedProducts;
@@ -90,7 +91,7 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         _bundledGroupMap = bundledGroups;
         try
         {
-            _groupMap = await _groupMapStore.LoadAsync(cancellationToken) ?? bundledGroups;
+            _groupMap = NewerGroupMap(await _groupMapStore.LoadAsync(cancellationToken), bundledGroups);
         }
         catch (InvalidDataException error)
         {
@@ -746,11 +747,16 @@ public sealed class AppBootstrapper(MainWindow window, IAppLogger logger) : IDis
         }
     }
 
+    // A map saved from the public history can be older than the one bundled with a fresh release.
+    private static GroupMap NewerGroupMap(GroupMap? saved, GroupMap bundled) =>
+        saved is not null && string.CompareOrdinal(saved.UpdatedAt, bundled.UpdatedAt) >= 0 ? saved : bundled;
+
     private void LogGroupMapConflicts()
     {
         if (_groupMap is null || _snapshot is null) return;
         foreach (var match in GroupMapMatcher.Match(_groupMap, _snapshot.Events).Matches.Where(item => item.NameConflict))
         {
+            if (!_loggedGroupConflicts.Add($"{match.SnapshotGroup} → {match.Entry.Name}")) continue;
             _logger.Log(
                 AppLogLevel.Warning,
                 "groups",

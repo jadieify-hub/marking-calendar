@@ -76,6 +76,36 @@ public sealed class AppBootstrapperTests
     }
 
     [Fact]
+    public void NewerGroupMap_PrefersBundledMapWhenSavedOneIsOlder()
+    {
+        var bundled = new GroupMap(2, "2026-10-15", [], []);
+        var older = bundled with { UpdatedAt = "2026-09-18" };
+        var newer = bundled with { UpdatedAt = "2026-10-20" };
+        GroupMap Pick(GroupMap? saved) => (GroupMap)typeof(AppBootstrapper)
+            .GetMethod("NewerGroupMap", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [saved, bundled])!;
+
+        Assert.Same(bundled, Pick(older));
+        Assert.Same(bundled, Pick(null));
+        Assert.Same(newer, Pick(newer));
+    }
+
+    [Fact]
+    public async Task LogGroupMapConflicts_WritesEachConflictOncePerRun()
+    {
+        await using var fixture = await Fixture.CreateAsync(new FixedSource());
+        var link = "https://честныйзнак.рф/business/projects/oil/";
+        fixture.Set("_snapshot", CalendarSnapshot.Create(DateTimeOffset.UnixEpoch, new Uri("https://example.test/calendar"),
+            [new CalendarEvent("oil", new DateOnly(2026, 10, 1), null, "с октября", "Растительное масло", "Маркировка", "Старт", "Описание", new Uri(link))]));
+        fixture.Set("_groupMap", new GroupMap(2, "2026-09-18", [new GroupSector("food", "Еда")],
+            [new GroupMapEntry("Растительные масла", "/business/projects/oil/", ["food"])]));
+
+        fixture.Invoke("LogGroupMapConflicts");
+        fixture.Invoke("LogGroupMapConflicts");
+
+        Assert.Single(fixture.Logger.Messages, message => message.Contains("Растительные масла", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task LegacyProductCacheAndDownload_DoNotReplaceBundledCatalog()
     {
         await using var fixture = await Fixture.CreateAsync(new FixedSource());
@@ -416,6 +446,8 @@ public sealed class AppBootstrapperTests
 
         public void Set(string name, object value) => typeof(AppBootstrapper).GetField(name, PrivateInstance)!.SetValue(_bootstrapper, value);
 
+        public void Invoke(string method) => typeof(AppBootstrapper).GetMethod(method, PrivateInstance)!.Invoke(_bootstrapper, null);
+
         public Task RefreshAsync() => InvokeAsync("RefreshAsync", false);
 
         public Task SendStateAsync() => (Task)typeof(AppBootstrapper)
@@ -444,8 +476,10 @@ public sealed class AppBootstrapperTests
     private sealed class RecordingLogger : IAppLogger
     {
         public ConcurrentQueue<Exception> Errors { get; } = new();
+        public ConcurrentQueue<string> Messages { get; } = new();
         public void Log(AppLogLevel level, string source, string message, Exception? exception = null)
         {
+            Messages.Enqueue(message);
             if (exception is not null) Errors.Enqueue(exception);
         }
         public Task SaveRejectedJsonAsync(string source, string json, CancellationToken cancellationToken) => Task.CompletedTask;
