@@ -30,7 +30,6 @@ const MONTHS = [
 ] as const;
 const WEEKDAYS = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const;
 const RU_COLLATOR = new Intl.Collator("ru-RU", { sensitivity: "base" });
-type ChangeFilterKind = ChangeSummaryViewModel["kind"];
 
 const CHANGE_LABELS = {
   moved: "Перенесено",
@@ -104,7 +103,6 @@ interface UiState {
   readonly selectedGroups: Set<string>;
   readonly dismissedNoticeIds: Set<string>;
   readonly dismissedGroupSuggestions: Set<string>;
-  readonly expandedHistoryBatchIds: Set<string>;
   initialized: boolean;
   groupMode: "mine" | "all";
   browsingGroups: Set<string> | null;
@@ -119,10 +117,7 @@ interface UiState {
   guideStep: number | null;
   theme: ThemePreference;
   historyMode: "mine" | "all";
-  changeKind: ChangeFilterKind | null;
   hasSelectedGroups: boolean;
-  selectedArchiveId: string;
-  dismissedComparisonBase: string | null;
   productsQuery: string;
   productsGroupId: string | null;
 }
@@ -146,7 +141,6 @@ class TimelineRenderer implements MountedApp {
     selectedGroups: new Set<string>(),
     dismissedNoticeIds: new Set<string>(),
     dismissedGroupSuggestions: new Set<string>(),
-    expandedHistoryBatchIds: new Set<string>(),
     initialized: false,
     groupMode: "all",
     browsingGroups: null,
@@ -161,10 +155,7 @@ class TimelineRenderer implements MountedApp {
     guideStep: null,
     theme: "auto",
     historyMode: "all",
-    changeKind: null,
     hasSelectedGroups: false,
-    selectedArchiveId: "",
-    dismissedComparisonBase: null,
     productsQuery: "",
     productsGroupId: null,
   };
@@ -207,8 +198,6 @@ class TimelineRenderer implements MountedApp {
     this.renderGroups();
     this.renderCategories();
     this.renderCalendar();
-    this.renderArchives();
-    this.renderComparison();
     this.renderHistory();
     this.renderViews();
     if (!this.requireModel().profile.onboardingCompleted && this.state.dialog === null) {
@@ -311,8 +300,6 @@ class TimelineRenderer implements MountedApp {
             </section>
             <section class="changes-view" aria-label="История изменений" hidden>
               <div class="section-heading"><h2>История изменений</h2><div class="history-mode group-mode" aria-label="Изменения по товарным группам" hidden><button type="button" data-history-mode="mine" aria-pressed="false">Мои группы</button><button type="button" data-history-mode="all" aria-pressed="true">Все</button></div></div>
-              <section class="archive-compare" aria-label="Сравнение со снимком"><label for="archive-select">Сравнить с датой</label><div class="archive-controls"><select id="archive-select" data-archive></select><button type="button" class="secondary-button" data-action="compare">Сравнить</button></div><p class="archive-hint"></p></section>
-              <section class="comparison-result" hidden></section>
               <div class="history-list"></div>
             </section>
           </main>
@@ -459,32 +446,12 @@ class TimelineRenderer implements MountedApp {
       this.state.historyMode = button.dataset.historyMode === "mine" ? "mine" : "all";
       this.renderHistory();
     }));
-    required(this.root.querySelector<HTMLElement>(".changes-view")).addEventListener("click", (event) => {
-      const tile = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-change-kind]") : null;
-      const kind = tile?.dataset.changeKind as ChangeFilterKind | undefined;
-      if (!kind || tile?.disabled) return;
-      this.state.changeKind = this.state.changeKind === kind ? null : kind;
-      this.renderHistory();
-      this.renderComparison();
-    });
     required(this.root.querySelector<HTMLElement>(".history-list")).addEventListener("click", (event) => {
       const copy = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-copy-batch]") : null;
       if (copy?.dataset.copyBatch) {
         this.send({ type: "copyBatch", batchId: copy.dataset.copyBatch });
         return;
       }
-      const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-other-batch]") : null;
-      if (!button?.dataset.otherBatch) return;
-      this.state.expandedHistoryBatchIds.add(button.dataset.otherBatch);
-      this.renderHistory();
-    });
-    required(this.root.querySelector<HTMLSelectElement>("[data-archive]")).addEventListener("change", (event) => {
-      this.state.selectedArchiveId = (event.currentTarget as HTMLSelectElement).value;
-    });
-    required(this.root.querySelector<HTMLButtonElement>('[data-action="compare"]')).addEventListener("click", () => {
-      if (!this.state.selectedArchiveId) return;
-      this.state.dismissedComparisonBase = null;
-      this.send({ type: "compareWith", id: this.state.selectedArchiveId });
     });
     required(this.root.querySelector<HTMLElement>(".upcoming")).addEventListener("click", (event) => {
       const button = event.target instanceof Element
@@ -1189,66 +1156,9 @@ class TimelineRenderer implements MountedApp {
       required(this.root.querySelector<HTMLElement>(".history-list")),
       this.requireModel().history.batches,
       this.state.historyMode,
-      this.state.expandedHistoryBatchIds,
       this.state.selectedGroups,
       new Set(this.requireModel().groups.map(group => group.key)),
-      this.state.changeKind,
     );
-  }
-
-  private renderArchives(): void {
-    const model = this.requireModel();
-    const select = required(this.root.querySelector<HTMLSelectElement>("[data-archive]"));
-    select.replaceChildren();
-    for (const archive of model.archives) {
-      const option = document.createElement("option");
-      option.value = archive.id;
-      option.textContent = archive.id === "bundled"
-        ? `Версия из установщика · ${archive.retrievedAt}`
-        : archive.retrievedAt;
-      select.append(option);
-    }
-    if (!model.archives.some((archive) => archive.id === this.state.selectedArchiveId)) {
-      this.state.selectedArchiveId = model.archives[0]?.id ?? "";
-    }
-    select.value = this.state.selectedArchiveId;
-    required(this.root.querySelector<HTMLButtonElement>('[data-action="compare"]')).disabled = model.archives.length === 0;
-    const checks = model.archives.filter((archive) => archive.id !== "bundled").length;
-    required(this.root.querySelector<HTMLElement>(".archive-hint")).textContent = checks > 0
-      ? `Доступны снимки за последние ${checks} проверок`
-      : "Архивных проверок пока нет";
-  }
-
-  private renderComparison(): void {
-    const comparison = this.requireModel().comparison;
-    const container = required(this.root.querySelector<HTMLElement>(".comparison-result"));
-    container.replaceChildren();
-    container.hidden = comparison === null || comparison.baseRetrievedAt === this.state.dismissedComparisonBase;
-    if (container.hidden || comparison === null) return;
-    const header = document.createElement("header");
-    const title = document.createElement("h3");
-    title.textContent = `Изменения с ${comparison.baseRetrievedAt.split(",")[0] ?? comparison.baseRetrievedAt}`;
-    const close = document.createElement("button");
-    close.type = "button";
-    close.dataset.action = "close-comparison";
-    close.textContent = "Закрыть";
-    close.addEventListener("click", () => {
-      this.state.dismissedComparisonBase = comparison.baseRetrievedAt;
-      container.hidden = true;
-    });
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.dataset.action = "copy-comparison";
-    copy.textContent = "Скопировать";
-    copy.addEventListener("click", () => this.send({ type: "copyComparison" }));
-    const actions = document.createElement("span");
-    actions.className = "comparison-actions";
-    actions.append(copy, close);
-    header.append(title, actions);
-    container.append(header, renderChangeCounts(comparison.counts, "history", this.state.changeKind));
-    const items = filterByKind(comparison.items, this.state.changeKind);
-    for (const item of items) container.append(summaryRow(item));
-    if (this.state.changeKind !== null && items.length === 0) container.append(kindEmpty());
   }
 
   private renderViews(): void {
@@ -2164,7 +2074,7 @@ class TimelineRenderer implements MountedApp {
     copy.dataset.action = "copy-notice";
     copy.addEventListener("click", () => this.send({ type: "copyNotice", batchId }));
     actions.append(copy, all, close);
-    dialog.append(title, renderChangeCounts(counts, "notice"), list, actions);
+    dialog.append(title, renderChangeCounts(counts), list, actions);
     const dismiss = (): void => {
       this.state.dismissedNoticeIds.add(batchId);
       this.send({ type: "dismissNotice", batchId });
@@ -2181,6 +2091,11 @@ class TimelineRenderer implements MountedApp {
   private openHistoryBatch(batchId: string, relatedBatchIds: ReadonlyArray<string> = [batchId]): void {
     this.activateView("changes");
     const related = new Set(relatedBatchIds);
+    const visibleIds = new Set(Array.from(this.root.querySelectorAll<HTMLElement>("[data-batch-id]"), item => item.dataset.batchId));
+    if (this.requireModel().history.batches.some(batch => related.has(batch.id) && !visibleIds.has(batch.id))) {
+      this.state.historyMode = "all";
+      this.renderHistory();
+    }
     const targets = Array.from(this.root.querySelectorAll<HTMLElement>("[data-batch-id]"))
       .filter((item) => item.dataset.batchId !== undefined && related.has(item.dataset.batchId));
     if (targets.length > 0) {
@@ -2283,72 +2198,69 @@ function renderHistory(
   container: HTMLElement,
   batches: ReadonlyArray<ChangeBatchViewModel>,
   mode: "mine" | "all",
-  expandedBatchIds: ReadonlySet<string>,
   selectedGroups: ReadonlySet<string>,
   knownGroups: ReadonlySet<string>,
-  kind: ChangeFilterKind | null,
 ): void {
   container.replaceChildren();
-  if (batches.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "history-empty";
-    empty.textContent = "Изменений пока нет";
-    container.append(empty);
-    return;
-  }
   for (const batch of batches) {
+    const shown = mode === "all" ? batch.items : batch.items.filter(entry => {
+      const keys = [entry.groupKey, entry.previousGroupKey].filter((key): key is string => !!key);
+      return keys.some(key => selectedGroups.has(key)) || (!keys.some(key => knownGroups.has(key)) && entry.mine);
+    });
+    if (shown.length === 0) continue;
     const article = document.createElement("article");
     article.className = `history-batch${batch.isUnread ? " is-unread" : ""}`;
     article.dataset.batchId = batch.id;
     const heading = document.createElement("h3");
     heading.textContent = batch.checkedAt;
-    const total = document.createElement("p");
-    total.textContent = pluralNoun(batch.counts.total, "изменение", "изменения", "изменений");
-    article.append(heading, total, renderChangeCounts(batch.counts, "history", kind));
-    const items = filterByKind(batch.items, kind);
-    const showAll = mode === "all" || expandedBatchIds.has(batch.id);
-    const mine = items.filter(entry => {
-      const keys = [entry.groupKey, entry.previousGroupKey].filter((key): key is string => !!key);
-      return keys.some(key => selectedGroups.has(key)) || (!keys.some(key => knownGroups.has(key)) && entry.mine);
-    });
-    const othersCount = items.length - mine.length;
-    const shown = showAll ? items : mine;
-    for (const item of shown) article.append(summaryRow(item));
-    if (kind !== null && shown.length === 0 && othersCount === 0) article.append(kindEmpty());
-    if (mode === "mine" && othersCount > 0 && !showAll) {
-      const others = document.createElement("button");
-      others.type = "button";
-      others.className = "other-changes";
-      others.dataset.otherBatch = batch.id;
-      others.textContent = `ещё ${othersCount} по другим группам`;
-      article.append(others);
-    }
     const copy = document.createElement("button");
     copy.type = "button";
     copy.className = "copy-summary";
     copy.dataset.copyBatch = batch.id;
-    copy.textContent = "Скопировать";
-    article.append(copy);
+    copy.textContent = "Скопировать сводку";
+    copy.title = "Скопировать все изменения этой проверки, включая другие группы";
+    const header = document.createElement("header");
+    header.append(heading, copy);
+    article.append(header);
+    for (const [kind, label] of [
+      ["moved", "Перенесены сроки"],
+      ["added", "Добавлены события"],
+      ["changed", "Изменены события"],
+      ["removed", "Удалены события"],
+      ["groupAdded", "Добавлены товарные группы"],
+      ["groupRenamed", "Переименованы товарные группы"],
+      ["groupRemoved", "Удалены товарные группы"],
+    ] as const) {
+      const items = shown.filter(item => item.kind === kind);
+      if (items.length === 0) continue;
+      const section = document.createElement("section");
+      section.className = "history-kind";
+      section.dataset.historyKind = kind;
+      const title = document.createElement("h4");
+      title.textContent = label;
+      const list = document.createElement("ul");
+      for (const item of items) list.append(summaryRow(item, true));
+      section.append(title, list);
+      article.append(section);
+    }
     container.append(article);
+  }
+  if (container.childElementCount === 0) {
+    const empty = document.createElement("p");
+    empty.className = "history-empty";
+    empty.textContent = mode === "mine" ? "По вашим группам изменений пока нет" : "Изменений пока нет";
+    container.append(empty);
   }
 }
 
 function renderChangeCounts(
   counts: ChangeCountsViewModel,
-  context: "history" | "notice",
-  active: ChangeFilterKind | null = null,
 ): HTMLElement {
   const grid = document.createElement("div");
-  grid.className = `change-counts ${context}-counts`;
-  const appendTile = (kind: ChangeFilterKind, label: string, value: number, extra: string): void => {
-    const tile = document.createElement(context === "history" ? "button" : "div");
-    tile.className = `change-count ${context}-count ${extra}`;
-    if (tile instanceof HTMLButtonElement) {
-      tile.type = "button";
-      tile.dataset.changeKind = kind;
-      tile.disabled = value === 0;
-      tile.setAttribute("aria-pressed", String(active === kind));
-    }
+  grid.className = "change-counts notice-counts";
+  const appendTile = (label: string, value: number, extra: string): void => {
+    const tile = document.createElement("div");
+    tile.className = `change-count notice-count ${extra}`;
     const number = document.createElement("strong");
     number.textContent = String(value);
     const caption = document.createElement("span");
@@ -2356,44 +2268,44 @@ function renderChangeCounts(
     tile.append(number, caption);
     grid.append(tile);
   };
-  for (const kind of ["moved", "added", "changed", "removed"] as const) appendTile(kind, CHANGE_LABELS[kind], counts[kind], `change-${kind}`);
-  for (const [kind, label, value] of [
-    ["groupAdded", "Новые группы", counts.groupsAdded ?? 0],
-    ["groupRenamed", "Переименовано групп", counts.groupsRenamed ?? 0],
-    ["groupRemoved", "Удалено групп", counts.groupsRemoved ?? 0],
+  for (const kind of ["moved", "added", "changed", "removed"] as const) appendTile(CHANGE_LABELS[kind], counts[kind], `change-${kind}`);
+  for (const [label, value] of [
+    ["Новые группы", counts.groupsAdded ?? 0],
+    ["Переименовано групп", counts.groupsRenamed ?? 0],
+    ["Удалено групп", counts.groupsRemoved ?? 0],
   ] as const) {
-    if (value !== 0) appendTile(kind, label, value, "change-group");
+    if (value !== 0) appendTile(label, value, "change-group");
   }
   return grid;
 }
 
-function filterByKind<T extends { readonly kind: ChangeFilterKind }>(items: ReadonlyArray<T>, kind: ChangeFilterKind | null): ReadonlyArray<T> {
-  return kind === null ? items : items.filter((item) => item.kind === kind);
-}
-
-function kindEmpty(): HTMLElement {
-  const empty = document.createElement("p");
-  empty.className = "change-kind-empty";
-  empty.textContent = "Изменений этого вида нет";
-  return empty;
-}
-
-function summaryRow(item: ChangeSummaryViewModel): HTMLElement {
-  const row = document.createElement("div");
+function summaryRow(item: ChangeSummaryViewModel, grouped = false): HTMLElement {
+  const row = document.createElement(grouped ? "li" : "div");
   row.className = `change-row change-${item.kind}`;
   const marker = document.createElement("span");
   marker.className = "change-marker";
+  marker.setAttribute("aria-hidden", "true");
   marker.textContent = item.kind === "moved" || item.kind === "groupRenamed" ? "→"
     : item.kind === "added" || item.kind === "groupAdded" ? "+"
     : item.kind === "removed" || item.kind === "groupRemoved" ? "−" : "•";
   const copy = document.createElement("span");
   const title = document.createElement("strong");
-  title.textContent = item.title;
+  const groupChange = grouped && (item.kind === "groupAdded" || item.kind === "groupRenamed" || item.kind === "groupRemoved");
+  title.textContent = groupChange ? item.detail : item.title;
   const detail = document.createElement("small");
-  detail.textContent = item.detail;
-  copy.append(title, detail);
+  detail.textContent = !grouped && item.kind in CHANGE_LABELS
+    ? `${CHANGE_LABELS[item.kind as keyof typeof CHANGE_LABELS]}: ${item.detail}` : item.detail;
+  copy.append(title);
+  if (!groupChange) copy.append(detail);
+  if (item.stage && item.stage !== item.title) {
+    const stage = document.createElement("span");
+    stage.className = "change-stage";
+    stage.textContent = item.stage;
+    copy.append(stage);
+  }
   if (item.changedFields.length > 0) appendDiffDisclosure(copy, item.changedFields);
-  row.append(marker, copy);
+  if (!grouped) row.append(marker);
+  row.append(copy);
   return row;
 }
 

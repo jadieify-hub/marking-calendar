@@ -136,11 +136,10 @@ describe("renderApp", () => {
       comparison: { baseRetrievedAt: "21.09.2026, 10:06", counts, mineCount: 1, othersCount: 0, items: [rename] },
       updateNotice: { batchId: "rename", counts, mineCount: 1, othersCount: 0, items: [rename] },
     }, vi.fn());
-    for (const selector of [".history-batch", ".comparison-result", ".update-dialog"]) {
+    for (const selector of [".history-batch", ".update-dialog"]) {
       expect(root.querySelector(`${selector} .change-row`)?.textContent).toContain(rename.detail);
-      expect(root.querySelector(selector)?.textContent).toContain("Переименовано групп");
     }
-    expect(root.querySelector(".history-batch > p")?.textContent).toBe("1 изменение");
+    expect(root.querySelector(".history-batch h3")?.textContent).toBe("23.09.2026, 13:25");
   });
 
   it.each([["mine", true], ["all", true], ["all", false]] as const)("preserves the renamed group selection in %s filters: %s", (mode, checked) => {
@@ -443,7 +442,7 @@ describe("renderApp", () => {
     toys.dispatchEvent(new Event("change", { bubbles: true }));
     expect(root.querySelector(".history-list")!.textContent).toContain("Игрушки — Старт");
     expect(root.querySelector(".history-list")!.textContent).not.toContain("Обувь — Старт");
-    expect(root.querySelector(".other-changes")!.textContent).toContain("ещё 1");
+    expect(root.querySelectorAll(".history-list .change-row")).toHaveLength(1);
   });
 
   it("updates the open event contents when a host event really changes", () => {
@@ -1354,9 +1353,10 @@ describe("renderApp", () => {
     expect(root.querySelector(".history-badge")?.textContent).toBe("1");
     const historyBatch = root.querySelector('[data-batch-id="batch-1"]');
     expect(historyBatch?.classList.contains("is-unread")).toBe(true);
-    expect(Array.from(historyBatch?.querySelectorAll(".change-count") ?? []).map((item) => item.textContent)).toEqual([
-      "0Перенесено", "1Добавлено", "0Изменено", "0Удалено",
-    ]);
+    expect(historyBatch?.querySelectorAll(".change-count")).toHaveLength(0);
+    expect(historyBatch?.textContent).toContain("Добавлены события");
+    expect(historyBatch?.textContent).toContain("01.10.2026");
+    expect(historyBatch?.textContent).toContain("Старт");
     historyBatch?.querySelector<HTMLButtonElement>("[data-copy-batch]")?.click();
     expect(send).toHaveBeenCalledWith({ type: "copyBatch", batchId: "batch-1" });
     root.querySelector<HTMLButtonElement>('[data-view="changes"]')?.click();
@@ -1433,7 +1433,7 @@ describe("renderApp", () => {
     expect(send).toHaveBeenCalledWith({ type: "openChanges", batchId: "others" });
   });
 
-  it("defaults history to my groups and can reveal other changes per batch or globally", () => {
+  it("defaults history to my groups and reveals others with the global switch", () => {
     const root = document.createElement("div");
     const mine = { kind: "added" as const, title: "Игрушки", detail: "01.10.2026", stage: "Старт", changedFields: [], mine: true };
     const other = { kind: "added" as const, title: "Обувь", detail: "02.10.2026", stage: "Старт", changedFields: [], mine: false };
@@ -1457,87 +1457,76 @@ describe("renderApp", () => {
     expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(1);
     expect(root.querySelector(".history-batch")?.textContent).toContain("Игрушки");
     expect(root.querySelector(".history-batch")?.textContent).not.toContain("Обувь");
-    expect(root.querySelector(".other-changes")?.textContent).toBe("ещё 1 по другим группам");
-
-    root.querySelector<HTMLButtonElement>(".other-changes")?.click();
-    expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(2);
+    expect(root.querySelector(".other-changes")).toBeNull();
 
     root.querySelector<HTMLButtonElement>('[data-history-mode="all"]')?.click();
     expect(root.querySelector('[data-history-mode="all"]')?.getAttribute("aria-pressed")).toBe("true");
     expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(2);
   });
 
-  it("filters history and comparison by change kind when a count tile is clicked", () => {
+  it("shows all change kinds directly below dates without comparison controls or count tiles", () => {
     const root = document.createElement("div");
-    const added = { kind: "added" as const, title: "Игрушки — Старт", detail: "01.10.2026", stage: "", changedFields: [], mine: false, groupKey: "игрушки" };
-    const removed = { kind: "removed" as const, title: "Обувь — Запрет", detail: "01.11.2026", stage: "", changedFields: [], mine: false, groupKey: "обувь" };
+    const added = { kind: "added" as const, title: "Игрушки — Продажа", detail: "01.10.2026", stage: "Передача через кассу", changedFields: [], mine: true, groupKey: "игрушки" };
+    const removed = { ...added, kind: "removed" as const, title: "Обувь — Запрет", mine: false, groupKey: "обувь" };
     const counts = { moved: 0, added: 1, changed: 0, removed: 1, total: 2 };
     renderApp(root, {
       ...model,
-      comparison: { baseRetrievedAt: "01.08.2026, 10:00", counts, mineCount: 0, othersCount: 2, items: [added, removed] },
+      archives: [{ id: "bundled", retrievedAt: "01.07.2026, 00:00" }],
+      comparison: { baseRetrievedAt: "01.08.2026, 10:00", counts, mineCount: 1, othersCount: 1, items: [added, removed] },
       history: { unreadCount: 0, batches: [
-        { id: "kinds", checkedAt: "02.09.2026, 10:00", isUnread: false, counts, mineCount: 0, othersCount: 2, items: [added, removed] },
-        { id: "only-added", checkedAt: "01.09.2026, 10:00", isUnread: false, counts: { ...counts, removed: 0, total: 1 }, mineCount: 0, othersCount: 1, items: [added] },
+        { id: "latest", checkedAt: "02.09.2026, 10:00", isUnread: false, counts, mineCount: 1, othersCount: 1, items: [added, removed] },
+        { id: "older", checkedAt: "01.09.2026, 10:00", isUnread: false, counts, mineCount: 1, othersCount: 0, items: [added] },
       ] },
     }, vi.fn());
-    root.querySelector<HTMLButtonElement>('[data-view="changes"]')?.click();
-
-    expect(root.querySelector<HTMLButtonElement>('[data-batch-id="kinds"] [data-change-kind="moved"]')?.disabled).toBe(true);
-    expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(3);
-    expect(root.querySelectorAll(".update-dialog [data-change-kind]")).toHaveLength(0);
-
-    root.querySelector<HTMLButtonElement>('[data-batch-id="kinds"] [data-change-kind="removed"]')?.click();
-    expect(root.querySelector('[data-batch-id="kinds"] [data-change-kind="removed"]')?.getAttribute("aria-pressed")).toBe("true");
-    expect(root.querySelectorAll('[data-batch-id="kinds"] .change-row')).toHaveLength(1);
-    expect(root.querySelector('[data-batch-id="kinds"]')?.textContent).toContain("Обувь");
-    expect(root.querySelector('[data-batch-id="kinds"]')?.textContent).not.toContain("Игрушки — Старт");
-    expect(root.querySelector('[data-batch-id="only-added"] .change-kind-empty')?.textContent).toBe("Изменений этого вида нет");
-    expect(root.querySelectorAll(".comparison-result .change-row")).toHaveLength(1);
-    expect(root.querySelector(".comparison-result")?.textContent).not.toContain("Игрушки — Старт");
-
-    root.querySelector<HTMLButtonElement>('.comparison-result [data-change-kind="removed"]')?.click();
-    expect(root.querySelectorAll(".history-batch .change-row")).toHaveLength(3);
-    expect(root.querySelectorAll(".comparison-result .change-row")).toHaveLength(2);
-    expect(root.querySelector('[data-batch-id="kinds"] [data-change-kind="removed"]')?.getAttribute("aria-pressed")).toBe("false");
+    const history = root.querySelector(".history-list")!;
+    expect(Array.from(history.querySelectorAll("h3"), h => h.textContent)).toEqual(["02.09.2026, 10:00", "01.09.2026, 10:00"]);
+    expect(history.querySelectorAll(".change-row")).toHaveLength(3);
+    expect(history.textContent).toContain("Добавлены события");
+    expect(history.textContent).toContain("Удалены события");
+    expect(history.textContent).toContain("Передача через кассу");
+    expect(root.querySelector(".archive-compare, .comparison-result, .history-count, [data-change-kind]")).toBeNull();
   });
 
-  it("requests an archive comparison and renders a temporary result above history", () => {
+  it("groups changes under one heading per kind and omits empty sections after filtering", () => {
     const root = document.createElement("div");
-    const send = vi.fn();
-    const item = { kind: "moved" as const, title: "Игрушки", detail: "01.09.2026 → 01.10.2026", stage: "Старт", changedFields: [], mine: false };
-    renderApp(root, {
-      ...model,
-      archives: [
-        { id: "20260801-070000-demo.json", retrievedAt: "01.08.2026, 10:00" },
-        { id: "bundled", retrievedAt: "01.07.2026, 00:00" },
-      ],
-      comparison: {
-        baseRetrievedAt: "01.08.2026, 10:00",
-        counts: { moved: 1, added: 0, changed: 0, removed: 0, total: 1 },
-        mineCount: 0,
-        othersCount: 1,
-        items: [item],
-      },
-    }, send);
-    root.querySelector<HTMLButtonElement>('[data-view="changes"]')?.click();
+    const rename = { kind: "groupRenamed" as const, title: "Переименована товарная группа", detail: "Игрушки → Игры и игрушки", stage: "", changedFields: [], mine: true, groupKey: "игрушки" };
+    const otherRename = { ...rename, detail: "Обувь → Обувная продукция", groupKey: "обувь", mine: false };
+    const added = { ...otherRename, kind: "added" as const, title: "Обувь — Продажа", detail: "01.12.2026", stage: "Передача через кассу" };
+    const removed = { ...otherRename, kind: "groupRemoved" as const, title: "Удалена товарная группа", detail: "Обувь" };
+    renderApp(root, { ...model, hasSelectedGroups: true, selectedGroups: ["игрушки"], history: { unreadCount: 0, batches: [{
+      id: "grouped", checkedAt: "07.10.2026, 12:15", isUnread: false,
+      counts: { moved: 0, added: 1, changed: 0, removed: 0, total: 4, groupsRenamed: 2, groupsRemoved: 1 }, mineCount: 1, othersCount: 3,
+      items: [rename, added, otherRename, removed],
+    }] } }, vi.fn());
+    expect(Array.from(root.querySelectorAll(".history-kind h4"), h => h.textContent)).toEqual(["Переименованы товарные группы"]);
+    expect(root.querySelectorAll(".history-kind li")).toHaveLength(1);
+    root.querySelector<HTMLButtonElement>('[data-history-mode="all"]')!.click();
+    expect(Array.from(root.querySelectorAll(".history-kind h4"), h => h.textContent)).toEqual([
+      "Добавлены события", "Переименованы товарные группы", "Удалены товарные группы",
+    ]);
+    const renames = root.querySelector('[data-history-kind="groupRenamed"]')!;
+    expect(renames.querySelectorAll("li")).toHaveLength(2);
+    expect(renames.textContent).toContain(rename.detail);
+    expect(renames.textContent).toContain(otherRename.detail);
+    expect(renames.textContent).not.toContain("Переименована товарная группа");
+    expect(root.querySelector('[data-history-kind="groupRemoved"] li')?.textContent).toBe("Обувь");
+    expect(root.querySelector('[data-history-kind="added"] li')?.textContent).toContain("Передача через кассу");
+    expect(root.querySelectorAll(".history-kind[hidden], .history-kind details, .history-kind .change-marker")).toHaveLength(0);
+  });
 
-    expect(root.querySelectorAll<HTMLSelectElement>("[data-archive] option")[1]?.textContent).toContain("Версия из установщика");
-    expect(root.querySelector(".archive-hint")?.textContent).toBe("Доступны снимки за последние 1 проверок");
-    expect(root.querySelector(".comparison-result")?.textContent).toContain("Изменения с 01.08.2026");
-    expect(root.querySelector(".comparison-result")?.textContent).toContain("Игрушки");
-
-    const select = root.querySelector<HTMLSelectElement>("[data-archive]");
-    if (select) {
-      select.value = "bundled";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    root.querySelector<HTMLButtonElement>('[data-action="compare"]')?.click();
-    expect(send).toHaveBeenCalledWith({ type: "compareWith", id: "bundled" });
-    root.querySelector<HTMLButtonElement>('[data-action="copy-comparison"]')?.click();
-    expect(send).toHaveBeenCalledWith({ type: "copyComparison" });
-
-    root.querySelector<HTMLButtonElement>('[data-action="close-comparison"]')?.click();
-    expect(root.querySelector<HTMLElement>(".comparison-result")?.hidden).toBe(true);
+  it("hides dates without my changes and reveals a hidden batch when opened from a notification", () => {
+    const root = document.createElement("div");
+    const mounted = mountApp(root, vi.fn());
+    mounted.update({ ...model, hasSelectedGroups: true, selectedGroups: ["игрушки"], history: { unreadCount: 1, batches: [{
+      id: "other-only", checkedAt: "02.09.2026, 10:00", isUnread: true,
+      counts: { moved: 0, added: 1, changed: 0, removed: 0, total: 1 }, mineCount: 0, othersCount: 1,
+      items: [{ kind: "added", title: "Обувь", detail: "01.10.2026", stage: "Старт", changedFields: [], mine: false, groupKey: "обувь" }],
+    }] } });
+    expect(root.querySelectorAll(".history-batch")).toHaveLength(0);
+    expect(root.querySelector(".history-empty")?.textContent).toBe("По вашим группам изменений пока нет");
+    mounted.openChanges("other-only");
+    expect(root.querySelector('[data-history-mode="all"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector('[data-batch-id="other-only"]')?.classList.contains("is-highlighted")).toBe(true);
   });
 
   it("opens and highlights the matching history batch from an update notice", () => {
