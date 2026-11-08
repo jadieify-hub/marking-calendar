@@ -383,7 +383,9 @@ def parse_scope_faq(group_id, html):
     answers = matching(blocks[0], "qa-block__answer")
     if len(answers) != 1:
         raise ValueError("Исчез ответ о составе товарной группы")
-    paragraphs = [text(n) for n in answers[0].children if isinstance(n, Node) and n.tag == "p" and text(n)]
+    # ЧЗ может оборачивать абзацы ответа во внешний <p>; его текст дублирует вложенные.
+    paragraphs = [text(n) for n in answers[0].nodes()
+                  if n.tag == "p" and not any(child.tag == "p" for child in n.nodes() if child is not n) and text(n)]
     names = []
     if group_id == "sportpit":
         definitions = [p for p in paragraphs if p.startswith("Для спортивного питания")]

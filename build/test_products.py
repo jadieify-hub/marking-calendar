@@ -90,6 +90,16 @@ class ProductTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 products.parse_scope_faq(group, source.replace("qa-block__question", "missing"))
 
+    def test_scope_faq_accepts_wrapped_paragraphs_and_keeps_scope_checks(self):
+        for group, required in (("fur", "головные уборы"), ("sportpit", "СГР")):
+            with self.subTest(group=group):
+                source = (FIXTURES.parent / "product-scopes" / f"{group}-wrapped.html").read_text(encoding="utf-8")
+                scope = products.parse_scope_faq(group, source)
+                original = products.parse_scope_faq(group, fetch(f"https://{products.CHZ_HOST}/business/projects/{group}/faq/"))
+                self.assertEqual(original, scope)
+                with self.assertRaises(ValueError):
+                    products.parse_scope_faq(group, source.replace(required, ""))
+
     def test_missing_card_codes_or_source_section_is_not_partial_success(self):
         for group, marker in (("water", "marking-retractable-block__content-code"),
                               ("beverages", "milk-marks-table__text")):
