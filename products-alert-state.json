@@ -1,11 +1,4 @@
 {
-  "failedGroups": [
-    "antiseptic",
-    "autoparts",
-    "beverages",
-    "dietarysup",
-    "grocery",
-    "nonalcoholic_beer"
-  ],
+  "failedGroups": [],
   "jobFailed": false
 }
