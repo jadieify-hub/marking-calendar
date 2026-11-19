@@ -1,6 +1,30 @@
 {
   "batches": [
     {
+      "id": "8d263e7a55c4d600288e099920f762d2f78638686fcd2bcbd709f2ceab070755",
+      "checkedAt": "2026-11-19T14:51:43.431366+00:00",
+      "changes": {
+        "added": [],
+        "removed": [],
+        "moved": [],
+        "changed": [],
+        "groupsAdded": [],
+        "groupsRemoved": [],
+        "groupsRenamed": [
+          {
+            "from": "\u0414\u0435\u0442\u0441\u043A\u043E\u0435 \u043F\u0438\u0442\u0430\u043D\u0438\u0435",
+            "to": "\u0414\u0435\u0442\u0441\u043A\u043E\u0435 \u043F\u0438\u0442\u0430\u043D\u0438\u0435 (\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D)"
+          }
+        ],
+        "total": 0,
+        "groupTotal": 1,
+        "hasChanges": true
+      },
+      "previousSnapshotId": "bac9707115e3c4ba639ac8cb739c8da0408dd9b0da91eb16dfac677486c6f3bc",
+      "currentSnapshotId": "ff23e1ae3620bb72b86de422d650dbba2e39188c2c6b1c6574ffe6dd257cf05b",
+      "source": "public"
+    },
+    {
       "id": "288da5f19d4203788ed0ef54f34b7c1c2f1e0c67098d120c8eeac8f6c202709c",
       "checkedAt": "2026-10-29T11:55:47.6035578+00:00",
       "changes": {
