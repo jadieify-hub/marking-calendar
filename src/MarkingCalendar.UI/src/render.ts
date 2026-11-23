@@ -953,8 +953,20 @@ class TimelineRenderer implements MountedApp {
       this.renderCalendar();
       target = this.root.querySelector<HTMLElement>(`[data-date="${date}"]`);
     }
-    if (target && typeof target.scrollIntoView === "function") {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (target) this.scrollContentTo(target, "center");
+  }
+
+  private scrollContentTo(target: HTMLElement, block: "start" | "center"): void {
+    const content = required(this.root.querySelector<HTMLElement>(".content"));
+    if (getComputedStyle(content).overflowY === "auto") {
+      const bounds = target.getBoundingClientRect();
+      const offset = block === "center" ? (content.clientHeight - bounds.height) / 2 : 0;
+      content.scrollTo({
+        top: content.scrollTop + bounds.top - content.getBoundingClientRect().top - offset,
+        behavior: "smooth",
+      });
+    } else {
+      target.scrollIntoView?.({ behavior: "smooth", block });
     }
   }
 
@@ -1132,7 +1144,7 @@ class TimelineRenderer implements MountedApp {
     }
     this.closeYearMenu();
     const target = this.root.querySelector<HTMLElement>(`#year-${year}`);
-    if (target && typeof target.scrollIntoView === "function") target.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (target) this.scrollContentTo(target, "start");
   }
 
   private closeYearMenu(): void {
@@ -2100,7 +2112,7 @@ class TimelineRenderer implements MountedApp {
       .filter((item) => item.dataset.batchId !== undefined && related.has(item.dataset.batchId));
     if (targets.length > 0) {
       for (const target of targets) target.classList.add("is-highlighted");
-      targets[0]?.scrollIntoView?.({ block: "center" });
+      this.scrollContentTo(targets[0]!, "center");
       window.setTimeout(() => {
         for (const target of targets) target.classList.remove("is-highlighted");
       }, 2_000);

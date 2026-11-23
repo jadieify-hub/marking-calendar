@@ -1223,6 +1223,25 @@ describe("renderApp", () => {
     expect(root.querySelector('[data-action="load-more"]')).toBeNull();
   });
 
+  it("scrolls only the calendar pane when jumping to an upcoming date in the fixed layout", () => {
+    const root = document.createElement("div");
+    renderApp(root, { ...model, events: [{ ...model.events[0], start: "2026-10-01" }] }, vi.fn());
+    const content = root.querySelector<HTMLElement>(".content")!;
+    const target = root.querySelector<HTMLElement>('[data-date="2026-10-01"]')!;
+    content.style.overflowY = "auto";
+    content.scrollTop = 120;
+    Object.defineProperty(content, "clientHeight", { value: 400 });
+    vi.spyOn(content, "getBoundingClientRect").mockReturnValue({ top: 100 } as DOMRect);
+    vi.spyOn(target, "getBoundingClientRect").mockReturnValue({ top: 700, height: 100 } as DOMRect);
+    content.scrollTo = vi.fn();
+    target.scrollIntoView = vi.fn();
+
+    root.querySelector<HTMLButtonElement>('[data-upcoming-date="2026-10-01"]')!.click();
+
+    expect(content.scrollTo).toHaveBeenCalledWith({ top: 570, behavior: "smooth" });
+    expect(target.scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it("smoothly returns to today after toggling past events", () => {
     const root = document.createElement("div");
     const scrolledElements: HTMLElement[] = [];

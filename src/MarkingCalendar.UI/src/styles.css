@@ -409,12 +409,12 @@ mark { border-radius: 3px; background: color-mix(in srgb, var(--today) 25%, tran
 }
 
 @media (min-width: 1100px) and (min-height: 800px) {
-  html, body, #app { height: 100%; min-height: 0; overflow: hidden; }
+  html, body, #app { height: 100%; min-height: 0; overflow: clip; }
   .app-shell { display: flex; height: 100vh; min-height: 0; flex-direction: column; padding-bottom: 20px; }
   .topbar { position: relative; flex: none; }
-  .layout { min-height: 0; flex: 1; }
-  .sidebar { min-height: 0; gap: 12px; }
-  .sidebar-section { gap: 6px; }
+  .layout { min-height: 0; flex: 1; grid-template-rows: minmax(0, 1fr); }
+  .sidebar { height: 100%; min-height: 0; gap: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .sidebar-section { flex: none; gap: 6px; }
   .group-list { max-height: clamp(176px, calc(100vh - 670px), 440px); }
   .category-filter { min-height: 36px; }
   .toggle { min-height: 38px; }
